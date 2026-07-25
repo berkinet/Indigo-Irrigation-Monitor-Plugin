@@ -97,7 +97,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         indigo.devices.subscribed = False
         indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
         self.plugin = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.0", {}
+            "plugin.id", "Irrigation Monitor", "0.1.1", {}
         )
         self.plugin.startup()
 
@@ -275,7 +275,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(len(self.records()), 1)
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.0", {}
+            "plugin.id", "Irrigation Monitor", "0.1.1", {}
         )
         restarted.startup()
         self.assertEqual(len(restarted._sessions), 1)
@@ -301,6 +301,41 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual([record["event"] for record in records], ["start", "stop"])
         self.assertEqual(records[-1]["reason"], "sourceRemoved")
         self.assertFalse(self.plugin._sessions)
+
+    def test_recent_runs_are_newest_first_and_limited_to_ten(self):
+        history = plugin_module.JsonlHistory(self.history_path)
+        for index in range(12):
+            history.append(
+                {
+                    "event": "stop",
+                    "time": f"2026-07-25T14:{index:02d}:00+02:00",
+                    "zone": f"Zone {index}",
+                    "totalDurationSeconds": index,
+                }
+            )
+
+        recent = history.recent_runs()
+
+        self.assertEqual(len(recent), 10)
+        self.assertEqual(recent[0]["zone"], "Zone 11")
+        self.assertEqual(recent[-1]["zone"], "Zone 2")
+
+    def test_recent_run_format_includes_duration_volume_and_fault(self):
+        formatted = self.plugin._format_run(
+            {
+                "time": "2026-07-25T14:52:34+02:00",
+                "zone": "LinkTap Salad",
+                "totalDurationSeconds": 73,
+                "volume": 3.24,
+                "faults": ["is_cutoff"],
+            }
+        )
+
+        self.assertEqual(
+            formatted,
+            "25 Jul 14:52 | LinkTap Salad | 1 min 13 sec | "
+            "volume 3.24 | fault is_cutoff",
+        )
 
     def test_boolean_and_selection_normalization(self):
         self.assertTrue(plugin_module._as_bool("on"))
