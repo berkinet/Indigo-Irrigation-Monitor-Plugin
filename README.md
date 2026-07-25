@@ -16,7 +16,8 @@ summary device.
 - Shows the active zone names, count, earliest start time, remaining minutes,
   and most recent event as custom states.
 - Exposes `recentRun1` through `recentRun10`, newest first, for use as fixed
-  text rows on an Indigo Control Page.
+  text rows on an Indigo Control Page. Rows use
+  `25 Jul 14:56 | Pool Refill | 00:01:10` formatting.
 - Marks the summary device unavailable when a configured source cannot provide
   a trustworthy state.
 - Writes append-only JSON Lines history to:

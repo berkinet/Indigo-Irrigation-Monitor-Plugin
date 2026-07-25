@@ -97,7 +97,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         indigo.devices.subscribed = False
         indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
         self.plugin = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.1", {}
+            "plugin.id", "Irrigation Monitor", "0.1.2", {}
         )
         self.plugin.startup()
 
@@ -275,7 +275,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(len(self.records()), 1)
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.1", {}
+            "plugin.id", "Irrigation Monitor", "0.1.2", {}
         )
         restarted.startup()
         self.assertEqual(len(restarted._sessions), 1)
@@ -333,8 +333,20 @@ class IrrigationMonitorTests(unittest.TestCase):
 
         self.assertEqual(
             formatted,
-            "25 Jul 14:52 | LinkTap Salad | 1 min 13 sec | "
+            "25 Jul 14:52 | LinkTap Salad | 00:01:13 | "
             "volume 3.24 | fault is_cutoff",
+        )
+
+    def test_time_display_formatting(self):
+        self.assertEqual(
+            self.plugin._format_timestamp(
+                "2026-07-25T16:00:21+02:00"
+            ),
+            "25 Jul 16:00",
+        )
+        self.assertEqual(
+            self.plugin._format_duration(23 * 3600 + 10 * 60),
+            "23:10:00",
         )
 
     def test_boolean_and_selection_normalization(self):
