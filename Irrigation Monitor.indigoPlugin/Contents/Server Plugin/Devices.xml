@@ -45,6 +45,56 @@
                 <TriggerLabel>Last irrigation event</TriggerLabel>
                 <ControlPageLabel>Last irrigation event</ControlPageLabel>
             </State>
+            <State id="recentRun1" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 1</TriggerLabel>
+                <ControlPageLabel>Recent run 1</ControlPageLabel>
+            </State>
+            <State id="recentRun2" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 2</TriggerLabel>
+                <ControlPageLabel>Recent run 2</ControlPageLabel>
+            </State>
+            <State id="recentRun3" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 3</TriggerLabel>
+                <ControlPageLabel>Recent run 3</ControlPageLabel>
+            </State>
+            <State id="recentRun4" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 4</TriggerLabel>
+                <ControlPageLabel>Recent run 4</ControlPageLabel>
+            </State>
+            <State id="recentRun5" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 5</TriggerLabel>
+                <ControlPageLabel>Recent run 5</ControlPageLabel>
+            </State>
+            <State id="recentRun6" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 6</TriggerLabel>
+                <ControlPageLabel>Recent run 6</ControlPageLabel>
+            </State>
+            <State id="recentRun7" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 7</TriggerLabel>
+                <ControlPageLabel>Recent run 7</ControlPageLabel>
+            </State>
+            <State id="recentRun8" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 8</TriggerLabel>
+                <ControlPageLabel>Recent run 8</ControlPageLabel>
+            </State>
+            <State id="recentRun9" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 9</TriggerLabel>
+                <ControlPageLabel>Recent run 9</ControlPageLabel>
+            </State>
+            <State id="recentRun10" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Recent run 10</TriggerLabel>
+                <ControlPageLabel>Recent run 10</ControlPageLabel>
+            </State>
             <State id="historyFile" readonly="true">
                 <ValueType>String</ValueType>
                 <TriggerLabel>History file</TriggerLabel>

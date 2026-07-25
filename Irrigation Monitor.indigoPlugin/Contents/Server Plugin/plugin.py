@@ -7,6 +7,7 @@ import json
 import os
 import threading
 import uuid
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -177,6 +178,13 @@ class JsonlHistory:
         for last in self.records() or ():
             pass
         return last
+
+    def recent_runs(self, limit: int = 10) -> list[dict[str, Any]]:
+        completed = deque(maxlen=max(0, limit))
+        for record in self.records() or ():
+            if record.get("event") == "stop":
+                completed.append(record)
+        return list(reversed(completed))
 
 
 class Plugin(indigo.PluginBase):
@@ -566,6 +574,7 @@ class Plugin(indigo.PluginBase):
 
         last_record = self._history.last_record()
         last_event = self._format_event(last_record)
+        recent_runs = self._history.recent_runs(10)
         changes = [
             {"key": "onOffState", "value": bool(self._sessions)},
             {
@@ -578,6 +587,13 @@ class Plugin(indigo.PluginBase):
             {"key": "lastEvent", "value": last_event},
             {"key": "historyFile", "value": str(self._history.path)},
         ]
+        for index in range(10):
+            value = ""
+            if index < len(recent_runs):
+                value = self._format_run(recent_runs[index])
+            changes.append(
+                {"key": f"recentRun{index + 1}", "value": value}
+            )
         monitor.updateStatesOnServer(changes)
         monitor.updateStateOnServer(
             "onOffState",
@@ -602,3 +618,38 @@ class Plugin(indigo.PluginBase):
             f"{record.get('time', '')} - {zone} stopped "
             f"after {duration} seconds"
         )
+
+    @classmethod
+    def _format_run(cls, record):
+        timestamp = str(record.get("time", ""))
+        try:
+            timestamp = datetime.fromisoformat(timestamp).strftime(
+                "%d %b %H:%M"
+            )
+        except ValueError:
+            pass
+        zone = str(record.get("zone", "Unknown zone"))
+        duration = cls._format_duration(
+            record.get("totalDurationSeconds", 0)
+        )
+        details = [timestamp, zone, duration]
+        if record.get("volume") is not None:
+            details.append(f"volume {record['volume']}")
+        faults = record.get("faults") or ()
+        if faults:
+            details.append("fault " + ", ".join(str(value) for value in faults))
+        return " | ".join(details)
+
+    @staticmethod
+    def _format_duration(value):
+        seconds = max(0, round(_as_float(value)))
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        parts = []
+        if hours:
+            parts.append(f"{hours} hr")
+        if minutes:
+            parts.append(f"{minutes} min")
+        if seconds or not parts:
+            parts.append(f"{seconds} sec")
+        return " ".join(parts)

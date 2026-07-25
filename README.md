@@ -15,6 +15,8 @@ summary device.
 - Reports **off** when every available configured source is idle.
 - Shows the active zone names, count, earliest start time, remaining minutes,
   and most recent event as custom states.
+- Exposes `recentRun1` through `recentRun10`, newest first, for use as fixed
+  text rows on an Indigo Control Page.
 - Marks the summary device unavailable when a configured source cannot provide
   a trustworthy state.
 - Writes append-only JSON Lines history to:
