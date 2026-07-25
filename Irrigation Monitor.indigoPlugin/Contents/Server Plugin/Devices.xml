@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<Devices>
+    <Device type="custom" id="irrigationMonitor">
+        <Name>Irrigation monitor</Name>
+        <ConfigUI>
+            <Field id="rainMachineDevices" type="list">
+                <Label>RainMachine controllers:</Label>
+                <Description>Select the Indigo RainMachine controller devices to monitor.</Description>
+                <List class="self" method="availableRainMachineDevices" dynamicReload="true"/>
+            </Field>
+            <Field id="linkTapDevices" type="list">
+                <Label>LinkTap zones:</Label>
+                <Description>Select each Indigo MQTT Shims LinkTap zone device to monitor.</Description>
+                <List class="self" method="availableLinkTapDevices" dynamicReload="true"/>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="onOffState" readonly="true">
+                <ValueType boolType="OnOff">Boolean</ValueType>
+                <TriggerLabel>Any zone watering</TriggerLabel>
+                <ControlPageLabel>Any zone watering</ControlPageLabel>
+            </State>
+            <State id="activeZones" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Active zones</TriggerLabel>
+                <ControlPageLabel>Active zones</ControlPageLabel>
+            </State>
+            <State id="activeCount" readonly="true">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Active zone count</TriggerLabel>
+                <ControlPageLabel>Active zone count</ControlPageLabel>
+            </State>
+            <State id="activeSince" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Active since</TriggerLabel>
+                <ControlPageLabel>Active since</ControlPageLabel>
+            </State>
+            <State id="remainingMinutes" readonly="true">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Remaining minutes</TriggerLabel>
+                <ControlPageLabel>Remaining minutes</ControlPageLabel>
+            </State>
+            <State id="lastEvent" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last irrigation event</TriggerLabel>
+                <ControlPageLabel>Last irrigation event</ControlPageLabel>
+            </State>
+            <State id="historyFile" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>History file</TriggerLabel>
+                <ControlPageLabel>History file</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>onOffState</UiDisplayStateId>
+    </Device>
+</Devices>

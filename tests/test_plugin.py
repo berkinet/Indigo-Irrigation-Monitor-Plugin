@@ -1,0 +1,314 @@
+import importlib.util
+import logging
+import sys
+import tempfile
+import unittest
+from datetime import datetime, timedelta
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from unittest.mock import Mock, patch
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SERVER = (
+    ROOT
+    / "Irrigation Monitor.indigoPlugin"
+    / "Contents"
+    / "Server Plugin"
+)
+sys.path.insert(0, str(SERVER))
+
+
+class PluginBase:
+    def __init__(self, plugin_id, display_name, version, prefs):
+        self.pluginId = plugin_id
+        self.pluginPrefs = prefs
+        self.logger = logging.getLogger("test")
+
+    def deviceStartComm(self, device):
+        pass
+
+    def deviceStopComm(self, device):
+        pass
+
+    def deviceUpdated(self, original_device, new_device):
+        pass
+
+
+class DeviceCollection:
+    def __init__(self):
+        self.items = {}
+        self.subscribed = False
+
+    def __iter__(self):
+        return iter(self.items.values())
+
+    def __getitem__(self, device_id):
+        return self.items[device_id]
+
+    def iter(self, _filter=None):
+        return iter(self.items.values())
+
+    def subscribeToChanges(self):
+        self.subscribed = True
+
+
+indigo = ModuleType("indigo")
+indigo.PluginBase = PluginBase
+indigo.Dict = dict
+indigo.devices = DeviceCollection()
+indigo.server = SimpleNamespace(getInstallFolderPath=Mock())
+sys.modules["indigo"] = indigo
+
+spec = importlib.util.spec_from_file_location(
+    "irrigation_monitor_plugin", SERVER / "plugin.py"
+)
+plugin_module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = plugin_module
+spec.loader.exec_module(plugin_module)
+
+
+def device(
+    device_id,
+    name,
+    states,
+    *,
+    device_type="external",
+    props=None,
+):
+    return SimpleNamespace(
+        id=device_id,
+        name=name,
+        states=dict(states),
+        enabled=True,
+        deviceTypeId=device_type,
+        pluginProps=dict(props or {}),
+        updateStatesOnServer=Mock(),
+        updateStateOnServer=Mock(),
+        setErrorStateOnServer=Mock(),
+    )
+
+
+class IrrigationMonitorTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        indigo.devices.items = {}
+        indigo.devices.subscribed = False
+        indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
+        self.plugin = plugin_module.Plugin(
+            "plugin.id", "Irrigation Monitor", "0.1.0", {}
+        )
+        self.plugin.startup()
+
+    @property
+    def history_path(self):
+        return (
+            Path(self.temp_dir.name)
+            / "Logs"
+            / "Irrigation Monitor"
+            / "irrigation-history.jsonl"
+        )
+
+    def make_monitor(self, rainmachine=(), linktap=()):
+        monitor = device(
+            1,
+            "Irrigation",
+            {},
+            device_type=plugin_module.DEVICE_MONITOR,
+            props={
+                "rainMachineDevices": [str(value) for value in rainmachine],
+                "linkTapDevices": [str(value) for value in linktap],
+            },
+        )
+        indigo.devices.items[monitor.id] = monitor
+        self.plugin.deviceStartComm(monitor)
+        return monitor
+
+    def records(self):
+        history = plugin_module.JsonlHistory(self.history_path)
+        return list(history.records() or ())
+
+    def test_startup_subscribes_to_indigo_device_changes(self):
+        self.assertTrue(indigo.devices.subscribed)
+
+    def test_dynamic_source_lists_use_required_states(self):
+        rm = device(
+            2,
+            "RainMachine",
+            {
+                "active_watering": False,
+                "current_zone": "all off",
+                "minutes_left": 0,
+            },
+        )
+        lt = device(
+            3,
+            "Orchard",
+            {
+                "is_watering": False,
+                "remain_duration": 0,
+                "total_duration": 0,
+            },
+        )
+        unrelated = device(4, "Lamp", {"onOffState": False})
+        indigo.devices.items = {
+            item.id: item for item in (rm, lt, unrelated)
+        }
+
+        self.assertEqual(
+            self.plugin.availableRainMachineDevices(), [("2", "RainMachine")]
+        )
+        self.assertEqual(
+            self.plugin.availableLinkTapDevices(), [("3", "Orchard")]
+        )
+
+    def test_linktap_start_and_stop_are_written_with_duration_and_volume(self):
+        lt = device(
+            3,
+            "Orchard",
+            {
+                "is_watering": False,
+                "remain_duration": 0,
+                "total_duration": 0,
+                "is_rf_linked": True,
+                "volume": 0,
+                "is_cutoff": False,
+            },
+        )
+        indigo.devices.items[lt.id] = lt
+        monitor = self.make_monitor(linktap=(lt.id,))
+
+        start_time = datetime.now().astimezone()
+        stop_time = start_time + timedelta(seconds=73)
+        lt.states.update(
+            {
+                "is_watering": True,
+                "remain_duration": 120,
+                "total_duration": 120,
+            }
+        )
+        with patch.object(plugin_module, "_now", return_value=start_time):
+            self.plugin._reconcile(monitor)
+
+        lt.states.update(
+            {
+                "is_watering": False,
+                "remain_duration": 0,
+                "volume": 34.5,
+                "is_cutoff": True,
+            }
+        )
+        with patch.object(plugin_module, "_now", return_value=stop_time):
+            self.plugin._reconcile(monitor)
+
+        start, stop = self.records()
+        self.assertEqual(start["event"], "start")
+        self.assertEqual(start["zone"], "Orchard")
+        self.assertEqual(stop["event"], "stop")
+        self.assertEqual(stop["totalDurationSeconds"], 73)
+        self.assertEqual(stop["volume"], 34.5)
+        self.assertEqual(stop["faults"], ["is_cutoff"])
+        self.assertNotIn("plannedDuration", start)
+        self.assertNotIn("plannedDuration", stop)
+
+    def test_rainmachine_zone_transition_stops_then_starts(self):
+        rm = device(
+            2,
+            "RainMachine",
+            {
+                "active_watering": True,
+                "current_zone": "Front",
+                "minutes_left": 5,
+                "device_online": True,
+            },
+        )
+        indigo.devices.items[rm.id] = rm
+        monitor = self.make_monitor(rainmachine=(rm.id,))
+
+        rm.states["current_zone"] = "Back"
+        self.plugin._reconcile(monitor)
+
+        records = self.records()
+        self.assertEqual(
+            [(record["event"], record["zone"]) for record in records],
+            [("start", "Front"), ("stop", "Front"), ("start", "Back")],
+        )
+
+    def test_unavailable_source_does_not_falsely_end_active_session(self):
+        lt = device(
+            3,
+            "Orchard",
+            {
+                "is_watering": True,
+                "remain_duration": 60,
+                "total_duration": 60,
+                "is_rf_linked": True,
+            },
+        )
+        indigo.devices.items[lt.id] = lt
+        monitor = self.make_monitor(linktap=(lt.id,))
+
+        lt.states["is_rf_linked"] = False
+        lt.states["is_watering"] = False
+        self.plugin._reconcile(monitor)
+
+        self.assertEqual(
+            [record["event"] for record in self.records()], ["start"]
+        )
+        self.assertTrue(self.plugin._sessions)
+        monitor.setErrorStateOnServer.assert_called()
+
+    def test_open_session_is_recovered_after_restart(self):
+        lt = device(
+            3,
+            "Orchard",
+            {
+                "is_watering": True,
+                "remain_duration": 60,
+                "total_duration": 60,
+                "is_rf_linked": True,
+            },
+        )
+        indigo.devices.items[lt.id] = lt
+        self.make_monitor(linktap=(lt.id,))
+        self.assertEqual(len(self.records()), 1)
+
+        restarted = plugin_module.Plugin(
+            "plugin.id", "Irrigation Monitor", "0.1.0", {}
+        )
+        restarted.startup()
+        self.assertEqual(len(restarted._sessions), 1)
+
+    def test_removing_active_source_closes_its_session(self):
+        lt = device(
+            3,
+            "Orchard",
+            {
+                "is_watering": True,
+                "remain_duration": 60,
+                "total_duration": 60,
+                "is_rf_linked": True,
+            },
+        )
+        indigo.devices.items[lt.id] = lt
+        monitor = self.make_monitor(linktap=(lt.id,))
+
+        monitor.pluginProps["linkTapDevices"] = []
+        self.plugin._reconcile(monitor)
+
+        records = self.records()
+        self.assertEqual([record["event"] for record in records], ["start", "stop"])
+        self.assertEqual(records[-1]["reason"], "sourceRemoved")
+        self.assertFalse(self.plugin._sessions)
+
+    def test_boolean_and_selection_normalization(self):
+        self.assertTrue(plugin_module._as_bool("on"))
+        self.assertFalse(plugin_module._as_bool("false"))
+        self.assertEqual(
+            plugin_module._selected_ids("2, 3;2,invalid"), [2, 3]
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
