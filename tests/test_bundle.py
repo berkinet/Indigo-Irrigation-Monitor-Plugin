@@ -13,7 +13,7 @@ class BundleTests(unittest.TestCase):
         with (BUNDLE / "Contents" / "Info.plist").open("rb") as stream:
             info = plistlib.load(stream)
         self.assertEqual(info["ServerApiVersion"], "3.8")
-        self.assertEqual(info["PluginVersion"], "0.1.1")
+        self.assertEqual(info["PluginVersion"], "0.1.2")
 
     def test_devices_xml_is_well_formed(self):
         root = ET.parse(

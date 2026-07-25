@@ -559,7 +559,7 @@ class Plugin(indigo.PluginBase):
         ]
         active_since = ""
         if self._sessions:
-            active_since = _iso(
+            active_since = self._format_timestamp(
                 min(session.started_at for session in self._sessions.values())
             )
         remaining_minutes = 0
@@ -621,13 +621,7 @@ class Plugin(indigo.PluginBase):
 
     @classmethod
     def _format_run(cls, record):
-        timestamp = str(record.get("time", ""))
-        try:
-            timestamp = datetime.fromisoformat(timestamp).strftime(
-                "%d %b %H:%M"
-            )
-        except ValueError:
-            pass
+        timestamp = cls._format_timestamp(record.get("time", ""))
         zone = str(record.get("zone", "Unknown zone"))
         duration = cls._format_duration(
             record.get("totalDurationSeconds", 0)
@@ -642,14 +636,18 @@ class Plugin(indigo.PluginBase):
 
     @staticmethod
     def _format_duration(value):
-        seconds = max(0, round(_as_float(value)))
-        hours, remainder = divmod(seconds, 3600)
+        total_seconds = max(0, round(_as_float(value)))
+        hours, remainder = divmod(total_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        parts = []
-        if hours:
-            parts.append(f"{hours} hr")
-        if minutes:
-            parts.append(f"{minutes} min")
-        if seconds or not parts:
-            parts.append(f"{seconds} sec")
-        return " ".join(parts)
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    @staticmethod
+    def _format_timestamp(value):
+        if isinstance(value, datetime):
+            parsed = value
+        else:
+            try:
+                parsed = datetime.fromisoformat(str(value))
+            except ValueError:
+                return str(value)
+        return parsed.strftime("%d %b %H:%M")
