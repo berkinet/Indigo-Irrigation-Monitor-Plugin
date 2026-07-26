@@ -17,9 +17,11 @@ summary device.
   and most recent event as custom states.
 - Exposes `recentRun1` through `recentRun10`, newest first, for use as fixed
   text rows on an Indigo Control Page. Rows use
-  `25 Jul 14:56 | RM Pool Refill | 00:01:10` formatting.
+  `25/07 14:56 | RM Pool Refill | 00:01:10` formatting.
 - Prefixes RainMachine zone names with `RM`; LinkTap zone names use their
   Indigo device names.
+- Reloads the history file and repopulates the recent-run states when the
+  plugin starts.
 - Marks the summary device unavailable when a configured source cannot provide
   a trustworthy state.
 - Writes append-only JSON Lines history to:

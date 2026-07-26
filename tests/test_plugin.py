@@ -132,6 +132,38 @@ class IrrigationMonitorTests(unittest.TestCase):
     def test_startup_subscribes_to_indigo_device_changes(self):
         self.assertTrue(indigo.devices.subscribed)
 
+    def test_startup_repopulates_history_states(self):
+        monitor = device(
+            1,
+            "Irrigation",
+            {},
+            device_type=plugin_module.DEVICE_MONITOR,
+        )
+        indigo.devices.items[monitor.id] = monitor
+        plugin_module.JsonlHistory(self.history_path).append(
+            {
+                "event": "stop",
+                "time": "2026-07-25T14:56:36+02:00",
+                "zone": "RM Pool Refill",
+                "totalDurationSeconds": 61,
+            }
+        )
+
+        restarted = plugin_module.Plugin(
+            "plugin.id", "Irrigation Monitor", "0.1.3", {}
+        )
+        restarted.startup()
+
+        changes = {
+            change["key"]: change["value"]
+            for change in monitor.updateStatesOnServer.call_args.args[0]
+        }
+        self.assertEqual(
+            changes["recentRun1"],
+            "25/07 14:56 | RM Pool Refill | 00:01:01",
+        )
+        self.assertEqual(changes["recentRun2"], "")
+
     def test_dynamic_source_lists_use_required_states(self):
         rm = device(
             2,
@@ -358,7 +390,7 @@ class IrrigationMonitorTests(unittest.TestCase):
 
         self.assertEqual(
             formatted,
-            "25 Jul 14:52 | LinkTap Salad | 00:01:13 | "
+            "25/07 14:52 | LinkTap Salad | 00:01:13 | "
             "volume 3.24 | fault is_cutoff",
         )
 
@@ -367,7 +399,7 @@ class IrrigationMonitorTests(unittest.TestCase):
             self.plugin._format_timestamp(
                 "2026-07-25T16:00:21+02:00"
             ),
-            "25 Jul 16:00",
+            "25/07 16:00",
         )
         self.assertEqual(
             self.plugin._format_duration(23 * 3600 + 10 * 60),

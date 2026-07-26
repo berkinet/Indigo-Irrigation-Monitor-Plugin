@@ -211,6 +211,14 @@ class Plugin(indigo.PluginBase):
         indigo.devices.subscribeToChanges()
         self._ensure_history()
         self._sessions = self._history.active_sessions()
+        for device in indigo.devices.iter("self"):
+            if (
+                device.deviceTypeId == DEVICE_MONITOR
+                and device.enabled
+            ):
+                self._monitor_device_id = device.id
+                self._populate_history_states(device)
+                break
 
     def shutdown(self):
         self.logger.info("Irrigation Monitor plugin stopped")
@@ -577,9 +585,6 @@ class Plugin(indigo.PluginBase):
                 1,
             )
 
-        last_record = self._history.last_record()
-        last_event = self._format_event(last_record)
-        recent_runs = self._history.recent_runs(10)
         changes = [
             {"key": "onOffState", "value": bool(self._sessions)},
             {
@@ -589,16 +594,8 @@ class Plugin(indigo.PluginBase):
             {"key": "activeCount", "value": len(active_names)},
             {"key": "activeSince", "value": active_since},
             {"key": "remainingMinutes", "value": remaining_minutes},
-            {"key": "lastEvent", "value": last_event},
-            {"key": "historyFile", "value": str(self._history.path)},
         ]
-        for index in range(10):
-            value = ""
-            if index < len(recent_runs):
-                value = self._format_run(recent_runs[index])
-            changes.append(
-                {"key": f"recentRun{index + 1}", "value": value}
-            )
+        changes.extend(self._history_state_changes())
         monitor.updateStatesOnServer(changes)
         monitor.updateStateOnServer(
             "onOffState",
@@ -610,6 +607,25 @@ class Plugin(indigo.PluginBase):
             monitor.setErrorStateOnServer(
                 "Unavailable: " + ", ".join(unavailable)
             )
+
+    def _populate_history_states(self, monitor):
+        monitor.updateStatesOnServer(self._history_state_changes())
+
+    def _history_state_changes(self):
+        last_record = self._history.last_record()
+        recent_runs = self._history.recent_runs(10)
+        changes = [
+            {"key": "lastEvent", "value": self._format_event(last_record)},
+            {"key": "historyFile", "value": str(self._history.path)},
+        ]
+        for index in range(10):
+            value = ""
+            if index < len(recent_runs):
+                value = self._format_run(recent_runs[index])
+            changes.append(
+                {"key": f"recentRun{index + 1}", "value": value}
+            )
+        return changes
 
     @staticmethod
     def _format_event(record):
@@ -655,4 +671,4 @@ class Plugin(indigo.PluginBase):
                 parsed = datetime.fromisoformat(str(value))
             except ValueError:
                 return str(value)
-        return parsed.strftime("%d %b %H:%M")
+        return parsed.strftime("%d/%m %H:%M")
