@@ -384,12 +384,17 @@ class Plugin(indigo.PluginBase):
         source_key = f"rainmachine:{device.id}:{zone_name}" if zone_name else (
             f"rainmachine:{device.id}"
         )
+        display_name = zone_name
+        if zone_name and not zone_name.casefold().startswith("rm "):
+            display_name = f"RM {zone_name}"
+        if not display_name:
+            display_name = device.name
         return SourceSnapshot(
             source_key=source_key,
             source_type="RainMachine",
             device_id=device.id,
             device_name=device.name,
-            zone_name=zone_name or device.name,
+            zone_name=display_name,
             watering=watering,
             available=available,
             remaining_minutes=_as_float(states.get("minutes_left")),

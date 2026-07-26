@@ -97,7 +97,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         indigo.devices.subscribed = False
         indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
         self.plugin = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.2", {}
+            "plugin.id", "Irrigation Monitor", "0.1.3", {}
         )
         self.plugin.startup()
 
@@ -232,7 +232,32 @@ class IrrigationMonitorTests(unittest.TestCase):
         records = self.records()
         self.assertEqual(
             [(record["event"], record["zone"]) for record in records],
-            [("start", "Front"), ("stop", "Front"), ("start", "Back")],
+            [
+                ("start", "RM Front"),
+                ("stop", "RM Front"),
+                ("start", "RM Back"),
+            ],
+        )
+        self.assertEqual(records[-1]["sourceKey"], "rainmachine:2:Back")
+
+    def test_rainmachine_does_not_duplicate_existing_rm_prefix(self):
+        rm = device(
+            2,
+            "RainMachine",
+            {
+                "active_watering": True,
+                "current_zone": "RM Pool Refill",
+                "minutes_left": 5,
+                "device_online": True,
+            },
+        )
+
+        snapshot = self.plugin._rainmachine_snapshot(rm)
+
+        self.assertEqual(snapshot.zone_name, "RM Pool Refill")
+        self.assertEqual(
+            snapshot.source_key,
+            "rainmachine:2:RM Pool Refill",
         )
 
     def test_unavailable_source_does_not_falsely_end_active_session(self):
@@ -275,7 +300,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(len(self.records()), 1)
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.2", {}
+            "plugin.id", "Irrigation Monitor", "0.1.3", {}
         )
         restarted.startup()
         self.assertEqual(len(restarted._sessions), 1)
