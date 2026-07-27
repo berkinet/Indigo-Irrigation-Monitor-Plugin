@@ -97,7 +97,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         indigo.devices.subscribed = False
         indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
         self.plugin = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.5", {}
+            "plugin.id", "Irrigation Monitor", "0.1.6", {}
         )
         self.plugin.startup()
 
@@ -132,6 +132,15 @@ class IrrigationMonitorTests(unittest.TestCase):
     def test_startup_subscribes_to_indigo_device_changes(self):
         self.assertTrue(indigo.devices.subscribed)
 
+    def test_active_since_uses_placeholder_while_idle(self):
+        monitor = self.make_monitor()
+        changes = {
+            change["key"]: change["value"]
+            for change in monitor.updateStatesOnServer.call_args.args[0]
+        }
+
+        self.assertEqual(changes["activeSince"], "--")
+
     def test_startup_repopulates_history_states(self):
         monitor = device(
             1,
@@ -150,7 +159,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         )
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.5", {}
+            "plugin.id", "Irrigation Monitor", "0.1.6", {}
         )
         with patch.object(
             plugin_module,
@@ -340,7 +349,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(len(self.records()), 1)
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.5", {}
+            "plugin.id", "Irrigation Monitor", "0.1.6", {}
         )
         restarted.startup()
         self.assertEqual(len(restarted._sessions), 1)

@@ -14,7 +14,8 @@ summary device.
 - Reports **on** whenever any configured zone is watering.
 - Reports **off** when every available configured source is idle.
 - Shows the active zone names, count, earliest start time, remaining minutes,
-  and most recent event as custom states.
+  and most recent event as custom states. `activeSince` reads `--` while idle
+  so its Indigo Control Page caption remains correctly positioned.
 - Shows `timeSinceLastWatering` as `HH:MM:SS`, measured from the newest
   completed watering run and refreshed every minute. It reads `00:00:00`
   whenever any zone is actively watering.
