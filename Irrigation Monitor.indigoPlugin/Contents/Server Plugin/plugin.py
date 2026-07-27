@@ -17,6 +17,7 @@ import indigo
 
 
 DEVICE_MONITOR = "irrigationMonitor"
+TIME_SINCE_REFRESH_SECONDS = 60
 
 RM_REQUIRED_STATES = frozenset(
     {"active_watering", "current_zone", "minutes_left"}
@@ -222,6 +223,18 @@ class Plugin(indigo.PluginBase):
 
     def shutdown(self):
         self.logger.info("Irrigation Monitor plugin stopped")
+
+    def runConcurrentThread(self):
+        try:
+            while True:
+                self.sleep(TIME_SINCE_REFRESH_SECONDS)
+                monitor = self._monitor_device()
+                if monitor is None:
+                    continue
+                with self._lock:
+                    self._update_time_since_last_watering(monitor)
+        except self.StopThread:
+            pass
 
     def deviceStartComm(self, device):
         super().deviceStartComm(device)
@@ -595,7 +608,7 @@ class Plugin(indigo.PluginBase):
             {"key": "activeSince", "value": active_since},
             {"key": "remainingMinutes", "value": remaining_minutes},
         ]
-        changes.extend(self._history_state_changes())
+        changes.extend(self._history_state_changes(monitor))
         monitor.updateStatesOnServer(changes)
         monitor.updateStateOnServer(
             "onOffState",
@@ -609,14 +622,30 @@ class Plugin(indigo.PluginBase):
             )
 
     def _populate_history_states(self, monitor):
-        monitor.updateStatesOnServer(self._history_state_changes())
+        monitor.updateStatesOnServer(self._history_state_changes(monitor))
 
-    def _history_state_changes(self):
+    def _update_time_since_last_watering(self, monitor):
+        if "timeSinceLastWatering" not in monitor.states:
+            return
+        recent_runs = self._history.recent_runs(1)
+        last_stop = recent_runs[0] if recent_runs else None
+        monitor.updateStateOnServer(
+            "timeSinceLastWatering",
+            value=self._format_time_since_stop(last_stop),
+            triggerEvents=False,
+        )
+
+    def _history_state_changes(self, monitor=None):
         last_record = self._history.last_record()
         recent_runs = self._history.recent_runs(10)
+        last_stop = recent_runs[0] if recent_runs else None
         changes = [
             {"key": "lastEvent", "value": self._format_event(last_record)},
             {"key": "historyFile", "value": str(self._history.path)},
+            {
+                "key": "timeSinceLastWatering",
+                "value": self._format_time_since_stop(last_stop),
+            },
         ]
         for index in range(10):
             value = ""
@@ -625,6 +654,15 @@ class Plugin(indigo.PluginBase):
             changes.append(
                 {"key": f"recentRun{index + 1}", "value": value}
             )
+        if (
+            monitor is not None
+            and "timeSinceLastWatering" not in monitor.states
+        ):
+            changes = [
+                change
+                for change in changes
+                if change["key"] != "timeSinceLastWatering"
+            ]
         return changes
 
     @staticmethod
@@ -661,6 +699,17 @@ class Plugin(indigo.PluginBase):
         hours, remainder = divmod(total_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    @classmethod
+    def _format_time_since_stop(cls, record, now=None):
+        if not record:
+            return "Never"
+        try:
+            stopped_at = datetime.fromisoformat(str(record["time"]))
+            elapsed = (now or _now()) - stopped_at
+        except (KeyError, TypeError, ValueError):
+            return "Unknown"
+        return cls._format_duration(elapsed.total_seconds())
 
     @staticmethod
     def _format_timestamp(value):

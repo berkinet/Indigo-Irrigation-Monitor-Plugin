@@ -97,7 +97,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         indigo.devices.subscribed = False
         indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
         self.plugin = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.3", {}
+            "plugin.id", "Irrigation Monitor", "0.1.4", {}
         )
         self.plugin.startup()
 
@@ -136,7 +136,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         monitor = device(
             1,
             "Irrigation",
-            {},
+            {"timeSinceLastWatering": ""},
             device_type=plugin_module.DEVICE_MONITOR,
         )
         indigo.devices.items[monitor.id] = monitor
@@ -150,9 +150,16 @@ class IrrigationMonitorTests(unittest.TestCase):
         )
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.3", {}
+            "plugin.id", "Irrigation Monitor", "0.1.4", {}
         )
-        restarted.startup()
+        with patch.object(
+            plugin_module,
+            "_now",
+            return_value=datetime.fromisoformat(
+                "2026-07-25T15:56:36+02:00"
+            ),
+        ):
+            restarted.startup()
 
         changes = {
             change["key"]: change["value"]
@@ -163,6 +170,7 @@ class IrrigationMonitorTests(unittest.TestCase):
             "25/07 14:56 | RM Pool Refill | 00:01:01",
         )
         self.assertEqual(changes["recentRun2"], "")
+        self.assertEqual(changes["timeSinceLastWatering"], "01:00:00")
 
     def test_dynamic_source_lists_use_required_states(self):
         rm = device(
@@ -332,7 +340,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(len(self.records()), 1)
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.3", {}
+            "plugin.id", "Irrigation Monitor", "0.1.4", {}
         )
         restarted.startup()
         self.assertEqual(len(restarted._sessions), 1)
@@ -404,6 +412,48 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(
             self.plugin._format_duration(23 * 3600 + 10 * 60),
             "23:10:00",
+        )
+
+    def test_time_since_last_watering_uses_latest_stop(self):
+        monitor = self.make_monitor()
+        monitor.states["timeSinceLastWatering"] = ""
+        plugin_module.JsonlHistory(self.history_path).append(
+            {
+                "event": "stop",
+                "time": "2026-07-25T14:56:36+02:00",
+                "zone": "RM Pool Refill",
+                "totalDurationSeconds": 61,
+            }
+        )
+
+        with patch.object(
+            plugin_module,
+            "_now",
+            return_value=datetime.fromisoformat(
+                "2026-07-26T16:56:36+02:00"
+            ),
+        ):
+            self.plugin._update_time_since_last_watering(monitor)
+
+        monitor.updateStateOnServer.assert_called_with(
+            "timeSinceLastWatering",
+            value="26:00:00",
+            triggerEvents=False,
+        )
+
+    def test_time_since_last_watering_reports_never_without_stop(self):
+        self.assertEqual(
+            self.plugin._format_time_since_stop(None),
+            "Never",
+        )
+
+    def test_new_state_is_skipped_until_device_definition_refreshes(self):
+        monitor = self.make_monitor()
+        changes = self.plugin._history_state_changes(monitor)
+
+        self.assertNotIn(
+            "timeSinceLastWatering",
+            {change["key"] for change in changes},
         )
 
     def test_boolean_and_selection_normalization(self):

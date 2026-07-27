@@ -45,6 +45,11 @@
                 <TriggerLabel>Last irrigation event</TriggerLabel>
                 <ControlPageLabel>Last irrigation event</ControlPageLabel>
             </State>
+            <State id="timeSinceLastWatering" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Time since last watering</TriggerLabel>
+                <ControlPageLabel>Time since last watering</ControlPageLabel>
+            </State>
             <State id="recentRun1" readonly="true">
                 <ValueType>String</ValueType>
                 <TriggerLabel>Recent run 1</TriggerLabel>

@@ -15,6 +15,8 @@ summary device.
 - Reports **off** when every available configured source is idle.
 - Shows the active zone names, count, earliest start time, remaining minutes,
   and most recent event as custom states.
+- Shows `timeSinceLastWatering` as `HH:MM:SS`, measured from the newest
+  completed watering run and refreshed every minute.
 - Exposes `recentRun1` through `recentRun10`, newest first, for use as fixed
   text rows on an Indigo Control Page. Rows use
   `25/07 14:56 | RM Pool Refill | 00:01:10` formatting.
