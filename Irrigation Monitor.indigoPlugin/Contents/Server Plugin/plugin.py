@@ -631,7 +631,10 @@ class Plugin(indigo.PluginBase):
         last_stop = recent_runs[0] if recent_runs else None
         monitor.updateStateOnServer(
             "timeSinceLastWatering",
-            value=self._format_time_since_stop(last_stop),
+            value=self._format_time_since_stop(
+                last_stop,
+                watering=bool(self._sessions),
+            ),
             triggerEvents=False,
         )
 
@@ -644,7 +647,10 @@ class Plugin(indigo.PluginBase):
             {"key": "historyFile", "value": str(self._history.path)},
             {
                 "key": "timeSinceLastWatering",
-                "value": self._format_time_since_stop(last_stop),
+                "value": self._format_time_since_stop(
+                    last_stop,
+                    watering=bool(self._sessions),
+                ),
             },
         ]
         for index in range(10):
@@ -701,7 +707,9 @@ class Plugin(indigo.PluginBase):
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
     @classmethod
-    def _format_time_since_stop(cls, record, now=None):
+    def _format_time_since_stop(cls, record, now=None, watering=False):
+        if watering:
+            return "00:00:00"
         if not record:
             return "Never"
         try:

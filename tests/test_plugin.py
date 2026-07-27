@@ -97,7 +97,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         indigo.devices.subscribed = False
         indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
         self.plugin = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.4", {}
+            "plugin.id", "Irrigation Monitor", "0.1.5", {}
         )
         self.plugin.startup()
 
@@ -150,7 +150,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         )
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.4", {}
+            "plugin.id", "Irrigation Monitor", "0.1.5", {}
         )
         with patch.object(
             plugin_module,
@@ -340,7 +340,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(len(self.records()), 1)
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.4", {}
+            "plugin.id", "Irrigation Monitor", "0.1.5", {}
         )
         restarted.startup()
         self.assertEqual(len(restarted._sessions), 1)
@@ -445,6 +445,15 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(
             self.plugin._format_time_since_stop(None),
             "Never",
+        )
+
+    def test_time_since_last_watering_is_zero_while_watering(self):
+        self.assertEqual(
+            self.plugin._format_time_since_stop(
+                None,
+                watering=True,
+            ),
+            "00:00:00",
         )
 
     def test_new_state_is_skipped_until_device_definition_refreshes(self):
