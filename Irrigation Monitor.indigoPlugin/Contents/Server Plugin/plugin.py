@@ -709,7 +709,7 @@ class Plugin(indigo.PluginBase):
     @classmethod
     def _format_time_since_stop(cls, record, now=None, watering=False):
         if watering:
-            return "00:00:00"
+            return "00:00"
         if not record:
             return "Never"
         try:
@@ -717,7 +717,9 @@ class Plugin(indigo.PluginBase):
             elapsed = (now or _now()) - stopped_at
         except (KeyError, TypeError, ValueError):
             return "Unknown"
-        return cls._format_duration(elapsed.total_seconds())
+        total_minutes = max(0, int(elapsed.total_seconds() // 60))
+        hours, minutes = divmod(total_minutes, 60)
+        return f"{hours:02d}:{minutes:02d}"
 
     @staticmethod
     def _format_timestamp(value):
