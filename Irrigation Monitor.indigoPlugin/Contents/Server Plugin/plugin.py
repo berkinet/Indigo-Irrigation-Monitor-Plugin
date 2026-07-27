@@ -583,7 +583,7 @@ class Plugin(indigo.PluginBase):
         active_names = [
             session.zone_name for session in self._sessions.values()
         ]
-        active_since = ""
+        active_since = "--"
         if self._sessions:
             active_since = self._format_timestamp(
                 min(session.started_at for session in self._sessions.values())
