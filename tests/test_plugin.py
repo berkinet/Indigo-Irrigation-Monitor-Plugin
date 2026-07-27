@@ -97,7 +97,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         indigo.devices.subscribed = False
         indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
         self.plugin = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.6", {}
+            "plugin.id", "Irrigation Monitor", "0.1.7", {}
         )
         self.plugin.startup()
 
@@ -159,7 +159,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         )
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.6", {}
+            "plugin.id", "Irrigation Monitor", "0.1.7", {}
         )
         with patch.object(
             plugin_module,
@@ -179,7 +179,7 @@ class IrrigationMonitorTests(unittest.TestCase):
             "25/07 14:56 | RM Pool Refill | 00:01:01",
         )
         self.assertEqual(changes["recentRun2"], "")
-        self.assertEqual(changes["timeSinceLastWatering"], "01:00:00")
+        self.assertEqual(changes["timeSinceLastWatering"], "01:00")
 
     def test_dynamic_source_lists_use_required_states(self):
         rm = device(
@@ -349,7 +349,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(len(self.records()), 1)
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.6", {}
+            "plugin.id", "Irrigation Monitor", "0.1.7", {}
         )
         restarted.startup()
         self.assertEqual(len(restarted._sessions), 1)
@@ -446,7 +446,7 @@ class IrrigationMonitorTests(unittest.TestCase):
 
         monitor.updateStateOnServer.assert_called_with(
             "timeSinceLastWatering",
-            value="26:00:00",
+            value="26:00",
             triggerEvents=False,
         )
 
@@ -462,7 +462,18 @@ class IrrigationMonitorTests(unittest.TestCase):
                 None,
                 watering=True,
             ),
-            "00:00:00",
+            "00:00",
+        )
+
+    def test_time_since_last_watering_discards_seconds(self):
+        self.assertEqual(
+            self.plugin._format_time_since_stop(
+                {"time": "2026-07-27T14:00:00+02:00"},
+                now=datetime.fromisoformat(
+                    "2026-07-27T14:02:45+02:00"
+                ),
+            ),
+            "00:02",
         )
 
     def test_new_state_is_skipped_until_device_definition_refreshes(self):

@@ -16,8 +16,8 @@ summary device.
 - Shows the active zone names, count, earliest start time, remaining minutes,
   and most recent event as custom states. `activeSince` reads `--` while idle
   so its Indigo Control Page caption remains correctly positioned.
-- Shows `timeSinceLastWatering` as `HH:MM:SS`, measured from the newest
-  completed watering run and refreshed every minute. It reads `00:00:00`
+- Shows `timeSinceLastWatering` as `HH:MM`, measured from the newest
+  completed watering run and refreshed every minute. It reads `00:00`
   whenever any zone is actively watering.
 - Exposes `recentRun1` through `recentRun10`, newest first, for use as fixed
   text rows on an Indigo Control Page. Rows use
