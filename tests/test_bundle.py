@@ -13,7 +13,7 @@ class BundleTests(unittest.TestCase):
         with (BUNDLE / "Contents" / "Info.plist").open("rb") as stream:
             info = plistlib.load(stream)
         self.assertEqual(info["ServerApiVersion"], "3.8")
-        self.assertEqual(info["PluginVersion"], "0.1.3")
+        self.assertEqual(info["PluginVersion"], "0.1.4")
 
     def test_devices_xml_is_well_formed(self):
         root = ET.parse(
@@ -24,6 +24,7 @@ class BundleTests(unittest.TestCase):
         }
         self.assertIn("onOffState", state_ids)
         self.assertIn("lastEvent", state_ids)
+        self.assertIn("timeSinceLastWatering", state_ids)
         self.assertTrue(
             {f"recentRun{index}" for index in range(1, 11)}.issubset(
                 state_ids
