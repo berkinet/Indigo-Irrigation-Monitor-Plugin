@@ -97,7 +97,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         indigo.devices.subscribed = False
         indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
         self.plugin = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.9", {}
+            "plugin.id", "Irrigation Monitor", "0.1.10", {}
         )
         self.plugin.startup()
 
@@ -159,7 +159,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         )
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.9", {}
+            "plugin.id", "Irrigation Monitor", "0.1.10", {}
         )
         with patch.object(
             plugin_module,
@@ -177,7 +177,8 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(
             changes["recentRun1"],
             "25/07 14:56 | "
-            + "RM Pool Refill".ljust(plugin_module.ZONE_DISPLAY_WIDTH)
+            + "RM Pool Refill"
+            + plugin_module.NON_BREAKING_SPACE * 9
             + " | 00:01:01",
         )
         self.assertEqual(changes["recentRun2"], "")
@@ -351,7 +352,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(len(self.records()), 1)
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.9", {}
+            "plugin.id", "Irrigation Monitor", "0.1.10", {}
         )
         restarted.startup()
         self.assertEqual(len(restarted._sessions), 1)
@@ -410,7 +411,8 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(
             formatted,
             "25/07 14:52 | "
-            + "LinkTap Salad".ljust(plugin_module.ZONE_DISPLAY_WIDTH)
+            + "LinkTap Salad"
+            + plugin_module.NON_BREAKING_SPACE * 10
             + " | 00:01:13 | fault is_cutoff",
         )
 

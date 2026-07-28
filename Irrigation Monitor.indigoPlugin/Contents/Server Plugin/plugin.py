@@ -19,6 +19,7 @@ import indigo
 DEVICE_MONITOR = "irrigationMonitor"
 TIME_SINCE_REFRESH_SECONDS = 60
 ZONE_DISPLAY_WIDTH = 23
+NON_BREAKING_SPACE = "\u00a0"
 
 RM_REQUIRED_STATES = frozenset(
     {"active_watering", "current_zone", "minutes_left"}
@@ -688,8 +689,10 @@ class Plugin(indigo.PluginBase):
     @classmethod
     def _format_run(cls, record):
         timestamp = cls._format_timestamp(record.get("time", ""))
-        zone = str(record.get("zone", "Unknown zone")).ljust(
-            ZONE_DISPLAY_WIDTH
+        zone = str(record.get("zone", "Unknown zone"))
+        zone += NON_BREAKING_SPACE * max(
+            0,
+            ZONE_DISPLAY_WIDTH - len(zone),
         )
         duration = cls._format_duration(
             record.get("totalDurationSeconds", 0)
