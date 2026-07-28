@@ -692,8 +692,6 @@ class Plugin(indigo.PluginBase):
             record.get("totalDurationSeconds", 0)
         )
         details = [timestamp, zone, duration]
-        if record.get("volume") is not None:
-            details.append(f"volume {record['volume']}")
         faults = record.get("faults") or ()
         if faults:
             details.append("fault " + ", ".join(str(value) for value in faults))

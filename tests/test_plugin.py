@@ -97,7 +97,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         indigo.devices.subscribed = False
         indigo.server.getInstallFolderPath.return_value = self.temp_dir.name
         self.plugin = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.7", {}
+            "plugin.id", "Irrigation Monitor", "0.1.8", {}
         )
         self.plugin.startup()
 
@@ -159,7 +159,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         )
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.7", {}
+            "plugin.id", "Irrigation Monitor", "0.1.8", {}
         )
         with patch.object(
             plugin_module,
@@ -349,7 +349,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(len(self.records()), 1)
 
         restarted = plugin_module.Plugin(
-            "plugin.id", "Irrigation Monitor", "0.1.7", {}
+            "plugin.id", "Irrigation Monitor", "0.1.8", {}
         )
         restarted.startup()
         self.assertEqual(len(restarted._sessions), 1)
@@ -394,7 +394,7 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(recent[0]["zone"], "Zone 11")
         self.assertEqual(recent[-1]["zone"], "Zone 2")
 
-    def test_recent_run_format_includes_duration_volume_and_fault(self):
+    def test_recent_run_format_omits_volume_and_includes_fault(self):
         formatted = self.plugin._format_run(
             {
                 "time": "2026-07-25T14:52:34+02:00",
@@ -407,8 +407,7 @@ class IrrigationMonitorTests(unittest.TestCase):
 
         self.assertEqual(
             formatted,
-            "25/07 14:52 | LinkTap Salad | 00:01:13 | "
-            "volume 3.24 | fault is_cutoff",
+            "25/07 14:52 | LinkTap Salad | 00:01:13 | fault is_cutoff",
         )
 
     def test_time_display_formatting(self):
