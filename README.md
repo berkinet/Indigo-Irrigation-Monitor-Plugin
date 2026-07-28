@@ -23,7 +23,8 @@ summary device.
   text rows on an Indigo Control Page. Rows use
   `25/07 14:56 | RM Pool Refill | 00:01:10` formatting. LinkTap volume is
   retained in the history file but omitted from these display states. Zone
-  names are right-padded to a 23-character field for monospaced displays.
+  names are right-padded to a 23-character field with non-breaking spaces so
+  Indigo's browser display preserves alignment with a monospaced font.
 - Prefixes RainMachine zone names with `RM`; LinkTap zone names use their
   Indigo device names.
 - Reloads the history file and repopulates the recent-run states when the
