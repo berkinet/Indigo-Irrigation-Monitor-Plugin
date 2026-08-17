@@ -946,7 +946,7 @@ class Plugin(indigo.PluginBase):
 
     def _rainmachine_program_payload(self, device):
         props = device.pluginProps
-        host = str(props.get("ip_address") or "").strip()
+        host = self._rainmachine_host(device)
         password = str(props.get("password") or "")
         base, context = self._rainmachine_local_endpoint(props, host)
         body = json.dumps({"pwd": password, "remember": True}).encode()
@@ -962,6 +962,13 @@ class Plugin(indigo.PluginBase):
         )
         with urllib.request.urlopen(url, timeout=15, context=context) as response:
             return json.load(response).get("programs", [])
+
+    @staticmethod
+    def _rainmachine_host(device):
+        props = device.pluginProps
+        return str(
+            props.get("ip_address") or getattr(device, "address", "") or ""
+        ).strip()
 
     @staticmethod
     def _rainmachine_local_endpoint(props, host):
@@ -1107,7 +1114,7 @@ class Plugin(indigo.PluginBase):
 
     def _rainmachine_schedule(self, device, day):
         props = device.pluginProps
-        host = str(props.get("ip_address") or "").strip()
+        host = self._rainmachine_host(device)
         password = str(props.get("password") or "")
         base, context = self._rainmachine_local_endpoint(props, host)
         body = json.dumps({"pwd": password, "remember": True}).encode()
