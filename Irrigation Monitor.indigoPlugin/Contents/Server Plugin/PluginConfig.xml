@@ -5,7 +5,7 @@
         <Label>OpenSprinkler address:</Label>
         <Description>IP address or hostname of the local OpenSprinkler controller.</Description>
     </Field>
-    <Field id="openSprinklerPassword" type="textfield" hidden="true">
+    <Field id="openSprinklerPassword" type="textfield" secure="true">
         <Label>OpenSprinkler password:</Label>
         <Description>Password used by the local OpenSprinkler API.</Description>
     </Field>
