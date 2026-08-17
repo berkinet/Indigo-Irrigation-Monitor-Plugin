@@ -39,6 +39,13 @@ summary device.
 - Records a `stop` event containing `totalDurationSeconds`.
 - Adds LinkTap volume and active fault fields to the stop event when available.
 - Recovers an open session from history after a plugin restart.
+- Collects today's RainMachine and OpenSprinkler plans after 00:01, merges
+  them in start-time order, and exposes `plannedEvent1` through
+  `plannedEvent64`. Each populated state uses
+  `program name | HH:MM | HH:MM` formatting. Repeated cycles belonging to one
+  program are represented by one span from the first start to the final end.
+- Provides **Plugins -> Irrigation Monitor -> Update Today's Schedule** for an
+  immediate refresh using the same collection path as the daily job.
 
 ## Source state requirements
 
@@ -58,6 +65,11 @@ LinkTap devices must expose:
 
 The optional `is_rf_linked` state is used to detect availability. Indigo device
 names are used as LinkTap zone names.
+
+OpenSprinkler schedule collection connects directly to the controller's local
+JSON API. Enter its IP address or hostname and password in the Irrigation
+Monitor device configuration; the password field is concealed. OpenSprinkler
+program durations use the controller's current weather-adjusted watering level.
 
 ## Installation
 

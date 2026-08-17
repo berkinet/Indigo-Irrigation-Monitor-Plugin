@@ -3,7 +3,7 @@ import logging
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
@@ -214,6 +214,115 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(
             self.plugin.availableLinkTapDevices(), [("3", "Orchard")]
         )
+
+    def test_opensprinkler_cycles_are_grouped_as_one_program_event(self):
+        payload = {
+            "settings": {"sunrise": 400, "sunset": 1235},
+            "options": {"wl": 148, "sdt": 5},
+            "stations": {
+                "snames": ["Front entry"],
+                "stn_grp": [0],
+            },
+            "programs": {
+                "pd": [
+                    [
+                        51,
+                        0,
+                        2,
+                        [145, 5, 1, 0],
+                        [60],
+                        "Front entry",
+                    ]
+                ]
+            },
+        }
+
+        events = self.plugin._parse_opensprinkler_schedule(
+            payload, date(2026, 8, 17)
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].name, "OS Front entry")
+        self.assertEqual(events[0].start.strftime("%H:%M:%S"), "02:25:00")
+        self.assertEqual(events[0].end.strftime("%H:%M:%S"), "02:31:29")
+
+    def test_rainmachine_cycles_are_grouped_by_program(self):
+        payload = {
+            "waterLog": {
+                "days": [
+                    {
+                        "date": "2026-08-17",
+                        "programs": [
+                            {
+                                "id": 3,
+                                "zones": [
+                                    {
+                                        "cycles": [
+                                            {
+                                                "startTime": "2026-08-17 06:00:00",
+                                                "machineDuration": 600,
+                                            },
+                                            {
+                                                "startTime": "2026-08-17 06:20:00",
+                                                "machineDuration": 300,
+                                            },
+                                        ]
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        }
+
+        events = self.plugin._parse_rainmachine_schedule(
+            payload, date(2026, 8, 17), {3: "Garden"}
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].name, "RM Garden")
+        self.assertEqual(events[0].start.strftime("%H:%M"), "06:00")
+        self.assertEqual(events[0].end.strftime("%H:%M"), "06:25")
+
+    def test_schedule_refresh_sorts_and_clears_reserved_states(self):
+        monitor = self.make_monitor()
+        early = plugin_module.PlannedEvent(
+            "OpenSprinkler",
+            "OS Early",
+            datetime.fromisoformat("2026-08-17T06:00:00+02:00"),
+            datetime.fromisoformat("2026-08-17T06:10:00+02:00"),
+        )
+        late = plugin_module.PlannedEvent(
+            "RainMachine",
+            "RM Late",
+            datetime.fromisoformat("2026-08-17T20:00:00+02:00"),
+            datetime.fromisoformat("2026-08-17T20:30:00+02:00"),
+        )
+        monitor.pluginProps["openSprinklerHost"] = "controller"
+        with patch.object(
+            self.plugin, "_opensprinkler_schedule", return_value=[early]
+        ), patch.object(
+            self.plugin, "_rainmachine_schedule", return_value=[late]
+        ):
+            monitor.pluginProps["rainMachineDevices"] = ["2"]
+            indigo.devices.items[2] = device(2, "RainMachine", {})
+            self.plugin._update_todays_schedule(
+                monitor, date(2026, 8, 17)
+            )
+
+        changes = {
+            change["key"]: change["value"]
+            for change in monitor.updateStatesOnServer.call_args.args[0]
+        }
+        self.assertEqual(changes["plannedEventCount"], 2)
+        self.assertEqual(
+            changes["plannedEvent1"], "OS Early | 06:00 | 06:10"
+        )
+        self.assertEqual(
+            changes["plannedEvent2"], "RM Late | 20:00 | 20:30"
+        )
+        self.assertEqual(changes["plannedEvent3"], "")
 
     def test_linktap_start_and_stop_are_written_with_duration_and_volume(self):
         lt = device(

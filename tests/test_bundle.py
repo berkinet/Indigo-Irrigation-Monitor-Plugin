@@ -13,7 +13,7 @@ class BundleTests(unittest.TestCase):
         with (BUNDLE / "Contents" / "Info.plist").open("rb") as stream:
             info = plistlib.load(stream)
         self.assertEqual(info["ServerApiVersion"], "3.8")
-        self.assertEqual(info["PluginVersion"], "0.1.10")
+        self.assertEqual(info["PluginVersion"], "0.2.0")
 
     def test_devices_xml_is_well_formed(self):
         root = ET.parse(
@@ -29,6 +29,19 @@ class BundleTests(unittest.TestCase):
             {f"recentRun{index}" for index in range(1, 11)}.issubset(
                 state_ids
             )
+        )
+        self.assertTrue(
+            {f"plannedEvent{index}" for index in range(1, 65)}.issubset(
+                state_ids
+            )
+        )
+
+    def test_schedule_menu_is_well_formed(self):
+        root = ET.parse(
+            BUNDLE / "Contents" / "Server Plugin" / "MenuItems.xml"
+        ).getroot()
+        self.assertEqual(
+            root.findtext(".//CallbackMethod"), "updateTodaysSchedule"
         )
 
 

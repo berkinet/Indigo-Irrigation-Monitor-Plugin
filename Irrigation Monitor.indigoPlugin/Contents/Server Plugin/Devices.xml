@@ -13,6 +13,14 @@
                 <Description>Select each Indigo MQTT Shims LinkTap zone device to monitor.</Description>
                 <List class="self" method="availableLinkTapDevices" dynamicReload="true"/>
             </Field>
+            <Field id="openSprinklerHost" type="textfield" defaultValue="192.168.5.49">
+                <Label>OpenSprinkler address:</Label>
+                <Description>IP address or hostname of the local OpenSprinkler controller.</Description>
+            </Field>
+            <Field id="openSprinklerPassword" type="textfield" hidden="true">
+                <Label>OpenSprinkler password:</Label>
+                <Description>Password used by the local OpenSprinkler API.</Description>
+            </Field>
         </ConfigUI>
         <States>
             <State id="onOffState" readonly="true">
@@ -105,6 +113,90 @@
                 <TriggerLabel>History file</TriggerLabel>
                 <ControlPageLabel>History file</ControlPageLabel>
             </State>
+            <State id="plannedEventCount" readonly="true">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Planned event count</TriggerLabel>
+                <ControlPageLabel>Planned event count</ControlPageLabel>
+            </State>
+            <State id="plannedScheduleDate" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Planned schedule date</TriggerLabel>
+                <ControlPageLabel>Planned schedule date</ControlPageLabel>
+            </State>
+            <State id="plannedScheduleUpdated" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Planned schedule updated</TriggerLabel>
+                <ControlPageLabel>Planned schedule updated</ControlPageLabel>
+            </State>
+            <State id="plannedScheduleStatus" readonly="true">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Planned schedule status</TriggerLabel>
+                <ControlPageLabel>Planned schedule status</ControlPageLabel>
+            </State>
+            <State id="plannedEvent1" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 1</TriggerLabel><ControlPageLabel>Planned event 1</ControlPageLabel></State>
+            <State id="plannedEvent2" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 2</TriggerLabel><ControlPageLabel>Planned event 2</ControlPageLabel></State>
+            <State id="plannedEvent3" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 3</TriggerLabel><ControlPageLabel>Planned event 3</ControlPageLabel></State>
+            <State id="plannedEvent4" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 4</TriggerLabel><ControlPageLabel>Planned event 4</ControlPageLabel></State>
+            <State id="plannedEvent5" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 5</TriggerLabel><ControlPageLabel>Planned event 5</ControlPageLabel></State>
+            <State id="plannedEvent6" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 6</TriggerLabel><ControlPageLabel>Planned event 6</ControlPageLabel></State>
+            <State id="plannedEvent7" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 7</TriggerLabel><ControlPageLabel>Planned event 7</ControlPageLabel></State>
+            <State id="plannedEvent8" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 8</TriggerLabel><ControlPageLabel>Planned event 8</ControlPageLabel></State>
+            <State id="plannedEvent9" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 9</TriggerLabel><ControlPageLabel>Planned event 9</ControlPageLabel></State>
+            <State id="plannedEvent10" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 10</TriggerLabel><ControlPageLabel>Planned event 10</ControlPageLabel></State>
+            <State id="plannedEvent11" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 11</TriggerLabel><ControlPageLabel>Planned event 11</ControlPageLabel></State>
+            <State id="plannedEvent12" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 12</TriggerLabel><ControlPageLabel>Planned event 12</ControlPageLabel></State>
+            <State id="plannedEvent13" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 13</TriggerLabel><ControlPageLabel>Planned event 13</ControlPageLabel></State>
+            <State id="plannedEvent14" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 14</TriggerLabel><ControlPageLabel>Planned event 14</ControlPageLabel></State>
+            <State id="plannedEvent15" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 15</TriggerLabel><ControlPageLabel>Planned event 15</ControlPageLabel></State>
+            <State id="plannedEvent16" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 16</TriggerLabel><ControlPageLabel>Planned event 16</ControlPageLabel></State>
+            <State id="plannedEvent17" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 17</TriggerLabel><ControlPageLabel>Planned event 17</ControlPageLabel></State>
+            <State id="plannedEvent18" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 18</TriggerLabel><ControlPageLabel>Planned event 18</ControlPageLabel></State>
+            <State id="plannedEvent19" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 19</TriggerLabel><ControlPageLabel>Planned event 19</ControlPageLabel></State>
+            <State id="plannedEvent20" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 20</TriggerLabel><ControlPageLabel>Planned event 20</ControlPageLabel></State>
+            <State id="plannedEvent21" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 21</TriggerLabel><ControlPageLabel>Planned event 21</ControlPageLabel></State>
+            <State id="plannedEvent22" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 22</TriggerLabel><ControlPageLabel>Planned event 22</ControlPageLabel></State>
+            <State id="plannedEvent23" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 23</TriggerLabel><ControlPageLabel>Planned event 23</ControlPageLabel></State>
+            <State id="plannedEvent24" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 24</TriggerLabel><ControlPageLabel>Planned event 24</ControlPageLabel></State>
+            <State id="plannedEvent25" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 25</TriggerLabel><ControlPageLabel>Planned event 25</ControlPageLabel></State>
+            <State id="plannedEvent26" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 26</TriggerLabel><ControlPageLabel>Planned event 26</ControlPageLabel></State>
+            <State id="plannedEvent27" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 27</TriggerLabel><ControlPageLabel>Planned event 27</ControlPageLabel></State>
+            <State id="plannedEvent28" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 28</TriggerLabel><ControlPageLabel>Planned event 28</ControlPageLabel></State>
+            <State id="plannedEvent29" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 29</TriggerLabel><ControlPageLabel>Planned event 29</ControlPageLabel></State>
+            <State id="plannedEvent30" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 30</TriggerLabel><ControlPageLabel>Planned event 30</ControlPageLabel></State>
+            <State id="plannedEvent31" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 31</TriggerLabel><ControlPageLabel>Planned event 31</ControlPageLabel></State>
+            <State id="plannedEvent32" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 32</TriggerLabel><ControlPageLabel>Planned event 32</ControlPageLabel></State>
+            <State id="plannedEvent33" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 33</TriggerLabel><ControlPageLabel>Planned event 33</ControlPageLabel></State>
+            <State id="plannedEvent34" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 34</TriggerLabel><ControlPageLabel>Planned event 34</ControlPageLabel></State>
+            <State id="plannedEvent35" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 35</TriggerLabel><ControlPageLabel>Planned event 35</ControlPageLabel></State>
+            <State id="plannedEvent36" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 36</TriggerLabel><ControlPageLabel>Planned event 36</ControlPageLabel></State>
+            <State id="plannedEvent37" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 37</TriggerLabel><ControlPageLabel>Planned event 37</ControlPageLabel></State>
+            <State id="plannedEvent38" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 38</TriggerLabel><ControlPageLabel>Planned event 38</ControlPageLabel></State>
+            <State id="plannedEvent39" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 39</TriggerLabel><ControlPageLabel>Planned event 39</ControlPageLabel></State>
+            <State id="plannedEvent40" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 40</TriggerLabel><ControlPageLabel>Planned event 40</ControlPageLabel></State>
+            <State id="plannedEvent41" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 41</TriggerLabel><ControlPageLabel>Planned event 41</ControlPageLabel></State>
+            <State id="plannedEvent42" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 42</TriggerLabel><ControlPageLabel>Planned event 42</ControlPageLabel></State>
+            <State id="plannedEvent43" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 43</TriggerLabel><ControlPageLabel>Planned event 43</ControlPageLabel></State>
+            <State id="plannedEvent44" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 44</TriggerLabel><ControlPageLabel>Planned event 44</ControlPageLabel></State>
+            <State id="plannedEvent45" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 45</TriggerLabel><ControlPageLabel>Planned event 45</ControlPageLabel></State>
+            <State id="plannedEvent46" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 46</TriggerLabel><ControlPageLabel>Planned event 46</ControlPageLabel></State>
+            <State id="plannedEvent47" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 47</TriggerLabel><ControlPageLabel>Planned event 47</ControlPageLabel></State>
+            <State id="plannedEvent48" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 48</TriggerLabel><ControlPageLabel>Planned event 48</ControlPageLabel></State>
+            <State id="plannedEvent49" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 49</TriggerLabel><ControlPageLabel>Planned event 49</ControlPageLabel></State>
+            <State id="plannedEvent50" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 50</TriggerLabel><ControlPageLabel>Planned event 50</ControlPageLabel></State>
+            <State id="plannedEvent51" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 51</TriggerLabel><ControlPageLabel>Planned event 51</ControlPageLabel></State>
+            <State id="plannedEvent52" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 52</TriggerLabel><ControlPageLabel>Planned event 52</ControlPageLabel></State>
+            <State id="plannedEvent53" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 53</TriggerLabel><ControlPageLabel>Planned event 53</ControlPageLabel></State>
+            <State id="plannedEvent54" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 54</TriggerLabel><ControlPageLabel>Planned event 54</ControlPageLabel></State>
+            <State id="plannedEvent55" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 55</TriggerLabel><ControlPageLabel>Planned event 55</ControlPageLabel></State>
+            <State id="plannedEvent56" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 56</TriggerLabel><ControlPageLabel>Planned event 56</ControlPageLabel></State>
+            <State id="plannedEvent57" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 57</TriggerLabel><ControlPageLabel>Planned event 57</ControlPageLabel></State>
+            <State id="plannedEvent58" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 58</TriggerLabel><ControlPageLabel>Planned event 58</ControlPageLabel></State>
+            <State id="plannedEvent59" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 59</TriggerLabel><ControlPageLabel>Planned event 59</ControlPageLabel></State>
+            <State id="plannedEvent60" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 60</TriggerLabel><ControlPageLabel>Planned event 60</ControlPageLabel></State>
+            <State id="plannedEvent61" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 61</TriggerLabel><ControlPageLabel>Planned event 61</ControlPageLabel></State>
+            <State id="plannedEvent62" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 62</TriggerLabel><ControlPageLabel>Planned event 62</ControlPageLabel></State>
+            <State id="plannedEvent63" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 63</TriggerLabel><ControlPageLabel>Planned event 63</ControlPageLabel></State>
+            <State id="plannedEvent64" readonly="true"><ValueType>String</ValueType><TriggerLabel>Planned event 64</TriggerLabel><ControlPageLabel>Planned event 64</ControlPageLabel></State>
         </States>
         <UiDisplayStateId>onOffState</UiDisplayStateId>
     </Device>
