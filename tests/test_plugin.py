@@ -293,6 +293,25 @@ class IrrigationMonitorTests(unittest.TestCase):
 
         self.assertEqual(events, [("RM Garden", 23400, 24540, False)])
 
+    def test_rainmachine_endpoint_matches_rainmachine2_local_login(self):
+        base, context = self.plugin._rainmachine_local_endpoint(
+            {
+                "connectionType": "Local",
+                "port": "8081",
+                "https": False,
+            },
+            "192.0.2.10",
+        )
+
+        self.assertEqual(base, "https://192.0.2.10:8080/api/4")
+        self.assertIsNotNone(context)
+
+    def test_rainmachine_program_discovery_rejects_cloud_connection(self):
+        with self.assertRaisesRegex(ValueError, "requires a local"):
+            self.plugin._rainmachine_local_endpoint(
+                {"connectionType": "Cloud"}, "controller"
+            )
+
     def test_log_all_programmed_events_writes_sorted_complete_list(self):
         monitor = self.make_monitor()
         self.plugin.logger = Mock()

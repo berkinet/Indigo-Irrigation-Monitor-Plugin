@@ -947,12 +947,8 @@ class Plugin(indigo.PluginBase):
     def _rainmachine_program_payload(self, device):
         props = device.pluginProps
         host = str(props.get("ip_address") or "").strip()
-        port = str(props.get("port") or "8080")
         password = str(props.get("password") or "")
-        use_https = _as_bool(props.get("https", True))
-        scheme = "https" if use_https else "http"
-        base = f"{scheme}://{host}:{port}/api/4"
-        context = ssl._create_unverified_context() if use_https else None
+        base, context = self._rainmachine_local_endpoint(props, host)
         body = json.dumps({"pwd": password, "remember": True}).encode()
         request = urllib.request.Request(
             base + "/auth/login",
@@ -966,6 +962,23 @@ class Plugin(indigo.PluginBase):
         )
         with urllib.request.urlopen(url, timeout=15, context=context) as response:
             return json.load(response).get("programs", [])
+
+    @staticmethod
+    def _rainmachine_local_endpoint(props, host):
+        connection_type = str(
+            props.get("connectionType") or "Local"
+        ).strip()
+        if connection_type.casefold() != "local":
+            raise ValueError(
+                "program discovery currently requires a local "
+                "RainMachine connection"
+            )
+        if not host:
+            raise ValueError("RainMachine local IP address is missing")
+        return (
+            f"https://{host}:8080/api/4",
+            ssl._create_unverified_context(),
+        )
 
     def _opensprinkler_schedule(self, monitor, day):
         host = str(
@@ -1095,12 +1108,8 @@ class Plugin(indigo.PluginBase):
     def _rainmachine_schedule(self, device, day):
         props = device.pluginProps
         host = str(props.get("ip_address") or "").strip()
-        port = str(props.get("port") or "8080")
         password = str(props.get("password") or "")
-        use_https = _as_bool(props.get("https", True))
-        scheme = "https" if use_https else "http"
-        base = f"{scheme}://{host}:{port}/api/4"
-        context = ssl._create_unverified_context() if use_https else None
+        base, context = self._rainmachine_local_endpoint(props, host)
         body = json.dumps({"pwd": password, "remember": True}).encode()
         request = urllib.request.Request(
             base + "/auth/login",
