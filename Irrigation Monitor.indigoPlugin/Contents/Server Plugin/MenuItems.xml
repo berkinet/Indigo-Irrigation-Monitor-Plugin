@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<MenuItems>
+    <MenuItem id="updateTodaysSchedule">
+        <Name>Update Today's Schedule</Name>
+        <CallbackMethod>updateTodaysSchedule</CallbackMethod>
+    </MenuItem>
+</MenuItems>

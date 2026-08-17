@@ -3,13 +3,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import ssl
 import threading
+import urllib.parse
+import urllib.request
 import uuid
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -18,6 +22,7 @@ import indigo
 
 DEVICE_MONITOR = "irrigationMonitor"
 TIME_SINCE_REFRESH_SECONDS = 60
+PLANNED_EVENT_STATE_COUNT = 64
 ZONE_DISPLAY_WIDTH = 23
 NON_BREAKING_SPACE = "\u00a0"
 
@@ -116,6 +121,24 @@ class ActiveSession:
     started_at: datetime
 
 
+@dataclass(frozen=True)
+class PlannedEvent:
+    source: str
+    name: str
+    start: datetime
+    end: datetime
+
+    def clipped_to(self, day: date) -> "PlannedEvent | None":
+        tzinfo = self.start.tzinfo
+        day_start = datetime.combine(day, time.min, tzinfo=tzinfo)
+        day_end = day_start + timedelta(days=1)
+        start = max(self.start, day_start)
+        end = min(self.end, day_end)
+        if end <= start:
+            return None
+        return PlannedEvent(self.source, self.name, start, end)
+
+
 class JsonlHistory:
     def __init__(self, path: Path):
         self.path = path
@@ -208,6 +231,7 @@ class Plugin(indigo.PluginBase):
         self._monitor_device_id: int | None = None
         self._history: JsonlHistory | None = None
         self._sessions: dict[str, ActiveSession] = {}
+        self._schedule_refresh_date: date | None = None
 
     def startup(self):
         self.logger.info("Irrigation Monitor plugin started")
@@ -235,6 +259,12 @@ class Plugin(indigo.PluginBase):
                     continue
                 with self._lock:
                     self._update_time_since_last_watering(monitor)
+                    now = _now()
+                    if (
+                        (now.hour, now.minute) >= (0, 1)
+                        and self._schedule_refresh_date != now.date()
+                    ):
+                        self._update_todays_schedule(monitor, now.date())
         except self.StopThread:
             pass
 
@@ -247,6 +277,18 @@ class Plugin(indigo.PluginBase):
             self._ensure_history()
             self._sessions = self._history.active_sessions()
             self._reconcile(device)
+
+    def updateTodaysSchedule(self):
+        """Plugin menu callback for an immediate schedule refresh."""
+        monitor = self._monitor_device()
+        if monitor is None:
+            self.logger.error(
+                "Unable to update today's schedule: no enabled Irrigation "
+                "Monitor device is available"
+            )
+            return
+        with self._lock:
+            self._update_todays_schedule(monitor, _now().date())
 
     def deviceStopComm(self, device):
         super().deviceStopComm(device)
@@ -272,14 +314,28 @@ class Plugin(indigo.PluginBase):
             values_dict.get("rainMachineDevices")
         )
         linktap_ids = _selected_ids(values_dict.get("linkTapDevices"))
-        if not rainmachine_ids and not linktap_ids:
+        opensprinkler_host = str(
+            values_dict.get("openSprinklerHost") or ""
+        ).strip()
+        if not rainmachine_ids and not linktap_ids and not opensprinkler_host:
             errors = indigo.Dict()
             errors["rainMachineDevices"] = (
-                "Select at least one RainMachine or LinkTap source device."
+                "Select a RainMachine or LinkTap source, or configure "
+                "OpenSprinkler."
             )
             errors["showAlertText"] = (
                 "The irrigation monitor needs at least one source device."
             )
+            return False, values_dict, errors
+
+        if opensprinkler_host and not str(
+            values_dict.get("openSprinklerPassword") or ""
+        ):
+            errors = indigo.Dict()
+            errors["openSprinklerPassword"] = (
+                "Enter the OpenSprinkler controller password."
+            )
+            errors["showAlertText"] = errors["openSprinklerPassword"]
             return False, values_dict, errors
 
         duplicate_ids = set(rainmachine_ids).intersection(linktap_ids)
@@ -639,6 +695,301 @@ class Plugin(indigo.PluginBase):
             ),
             triggerEvents=False,
         )
+
+    def _update_todays_schedule(self, monitor, day):
+        events = []
+        failures = []
+        for device_id in _selected_ids(
+            monitor.pluginProps.get("rainMachineDevices")
+        ):
+            device = self._device_by_id(device_id)
+            if device is None or not device.enabled:
+                failures.append(f"RainMachine {device_id}: unavailable")
+                continue
+            try:
+                events.extend(self._rainmachine_schedule(device, day))
+            except Exception as error:
+                failures.append(f"{device.name}: {error}")
+
+        host = str(
+            monitor.pluginProps.get("openSprinklerHost") or ""
+        ).strip()
+        if host:
+            try:
+                events.extend(self._opensprinkler_schedule(monitor, day))
+            except Exception as error:
+                failures.append(f"OpenSprinkler: {error}")
+
+        merged = []
+        for event in events:
+            clipped = event.clipped_to(day)
+            if clipped is not None:
+                merged.append(clipped)
+        merged.sort(
+            key=lambda event: (
+                event.start,
+                event.end,
+                event.source.casefold(),
+                event.name.casefold(),
+            )
+        )
+
+        overflow = max(0, len(merged) - PLANNED_EVENT_STATE_COUNT)
+        changes = [
+            {"key": "plannedEventCount", "value": len(merged)},
+            {"key": "plannedScheduleDate", "value": day.isoformat()},
+            {"key": "plannedScheduleUpdated", "value": _iso(_now())},
+            {
+                "key": "plannedScheduleStatus",
+                "value": self._schedule_status(failures, overflow),
+            },
+        ]
+        for index in range(PLANNED_EVENT_STATE_COUNT):
+            value = ""
+            if index < len(merged):
+                value = self._format_planned_event(merged[index])
+            changes.append(
+                {"key": f"plannedEvent{index + 1}", "value": value}
+            )
+        monitor.updateStatesOnServer(changes)
+        self._schedule_refresh_date = day
+        if failures:
+            self.logger.error(
+                "Today's schedule updated with errors: " + "; ".join(failures)
+            )
+        else:
+            self.logger.info(
+                f"Today's schedule updated: {len(merged)} planned events"
+            )
+        if overflow:
+            self.logger.error(
+                f"Today's schedule has {overflow} events beyond the "
+                f"{PLANNED_EVENT_STATE_COUNT} available event states"
+            )
+
+    @staticmethod
+    def _schedule_status(failures, overflow):
+        if failures:
+            return "Partial: " + "; ".join(failures)
+        if overflow:
+            return f"Overflow: {overflow} events not displayed"
+        return "Available"
+
+    @staticmethod
+    def _format_planned_event(event):
+        return f"{event.name} | {event.start:%H:%M} | {event.end:%H:%M}"
+
+    def _opensprinkler_schedule(self, monitor, day):
+        props = monitor.pluginProps
+        host = str(props.get("openSprinklerHost") or "").strip()
+        password = str(props.get("openSprinklerPassword") or "")
+        token = hashlib.md5(password.encode("utf-8")).hexdigest()
+        url = f"http://{host}/ja?" + urllib.parse.urlencode({"pw": token})
+        with urllib.request.urlopen(url, timeout=15) as response:
+            payload = json.load(response)
+        return self._parse_opensprinkler_schedule(payload, day)
+
+    @classmethod
+    def _parse_opensprinkler_schedule(cls, payload, day):
+        settings = payload.get("settings", {})
+        options = payload.get("options", {})
+        programs = payload.get("programs", {})
+        stations = payload.get("stations", {})
+        names = stations.get("snames", [])
+        groups = stations.get("stn_grp", [0] * len(names))
+        weather_level = _as_float(options.get("wl"), 100.0) / 100.0
+        station_delay = int(_as_float(options.get("sdt"), 0))
+        sunrise = int(_as_float(settings.get("sunrise"), 360))
+        sunset = int(_as_float(settings.get("sunset"), 1080))
+        tzinfo = _now().tzinfo
+        day_start = datetime.combine(day, time.min, tzinfo=tzinfo)
+        epoch_day = (day - date(1970, 1, 1)).days
+        result = []
+
+        for program in programs.get("pd", []):
+            if not isinstance(program, list) or len(program) < 6:
+                continue
+            flags, days0, days1, starts, durations, name = program[:6]
+            if not int(flags) & 1:
+                continue
+            program_type = (int(flags) >> 4) & 3
+            if not cls._opensprinkler_day_matches(
+                program_type, int(days0), int(days1), day, epoch_day
+            ):
+                continue
+            start_minutes = cls._opensprinkler_start_minutes(
+                int(flags), starts, sunrise, sunset
+            )
+            if not start_minutes:
+                continue
+            run_seconds = []
+            for index, raw_duration in enumerate(durations):
+                seconds = max(0, int(_as_float(raw_duration)))
+                if int(flags) & 2:
+                    seconds = round(seconds * weather_level)
+                if seconds and index < len(names):
+                    run_seconds.append((index, seconds))
+            if not run_seconds:
+                continue
+
+            spans = []
+            for start_minute in start_minutes:
+                group_ends = {}
+                latest = start_minute * 60
+                for station_index, duration in run_seconds:
+                    group = groups[station_index] if station_index < len(groups) else 0
+                    station_start = max(start_minute * 60, group_ends.get(group, 0))
+                    station_end = station_start + duration
+                    group_ends[group] = station_end + station_delay
+                    latest = max(latest, station_end)
+                spans.append((start_minute * 60, latest))
+            first = min(value[0] for value in spans)
+            last = max(value[1] for value in spans)
+            result.append(
+                PlannedEvent(
+                    source="OpenSprinkler",
+                    name=f"OS {str(name).strip()}",
+                    start=day_start + timedelta(seconds=first),
+                    end=day_start + timedelta(seconds=last),
+                )
+            )
+        return result
+
+    @staticmethod
+    def _opensprinkler_day_matches(
+        program_type, days0, days1, day, epoch_day
+    ):
+        if program_type == 0:
+            return bool(days0 & (1 << day.weekday()))
+        if program_type == 1:
+            return day.day % 2 == 1 and not (
+                day.day == 31 or (day.month == 2 and day.day == 29)
+            )
+        if program_type == 2:
+            return day.day % 2 == 0
+        if program_type == 3:
+            return days1 > 0 and epoch_day % days1 == days0
+        return False
+
+    @staticmethod
+    def _opensprinkler_start_minutes(flags, starts, sunrise, sunset):
+        def decode(value):
+            value = int(value)
+            if value < 0 or value & 0x8000:
+                return None
+            offset = value & 0x7FF
+            if value & 0x1000:
+                offset = -offset
+            if value & 0x2000:
+                return max(0, sunrise + offset)
+            if value & 0x4000:
+                return max(0, sunset + offset)
+            return value
+
+        if flags & 0x40:
+            return [
+                value
+                for value in (decode(item) for item in starts)
+                if value is not None
+            ]
+        if len(starts) < 3:
+            return []
+        first = decode(starts[0])
+        repeat = int(starts[1])
+        interval = int(starts[2])
+        if first is None:
+            return []
+        return [first + interval * index for index in range(repeat + 1)]
+
+    def _rainmachine_schedule(self, device, day):
+        props = device.pluginProps
+        host = str(props.get("ip_address") or "").strip()
+        port = str(props.get("port") or "8080")
+        password = str(props.get("password") or "")
+        use_https = _as_bool(props.get("https", True))
+        scheme = "https" if use_https else "http"
+        base = f"{scheme}://{host}:{port}/api/4"
+        context = ssl._create_unverified_context() if use_https else None
+        body = json.dumps({"pwd": password, "remember": True}).encode()
+        request = urllib.request.Request(
+            base + "/auth/login",
+            data=body,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(
+            request, timeout=15, context=context
+        ) as response:
+            token = json.load(response)["access_token"]
+
+        def get(endpoint):
+            url = base + "/" + endpoint + "?" + urllib.parse.urlencode(
+                {"access_token": token}
+            )
+            with urllib.request.urlopen(
+                url, timeout=15, context=context
+            ) as response:
+                return json.load(response)
+
+        programs = get("program").get("programs", [])
+        names = {int(item["uid"]): item.get("name", "") for item in programs}
+        endpoint = f"watering/log/simulated/details/{day.isoformat()}/1"
+        return self._parse_rainmachine_schedule(get(endpoint), day, names)
+
+    @staticmethod
+    def _parse_rainmachine_schedule(payload, day, program_names):
+        result = []
+        tzinfo = _now().tzinfo
+        for day_record in payload.get("waterLog", {}).get("days", []):
+            if day_record.get("date") and day_record.get("date") != day.isoformat():
+                continue
+            for program in day_record.get("programs", []):
+                starts = []
+                ends = []
+                for zone in program.get("zones", []):
+                    for cycle in zone.get("cycles", []):
+                        raw_start = cycle.get("startTime")
+                        if not raw_start:
+                            continue
+                        try:
+                            start = datetime.fromisoformat(str(raw_start))
+                        except ValueError:
+                            start = datetime.strptime(
+                                str(raw_start), "%Y-%m-%d %H:%M:%S"
+                            )
+                        if start.tzinfo is None:
+                            start = start.replace(tzinfo=tzinfo)
+                        duration = max(
+                            0,
+                            int(
+                                _as_float(
+                                    cycle.get(
+                                        "machineDuration",
+                                        cycle.get("userDuration", 0),
+                                    )
+                                )
+                            ),
+                        )
+                        starts.append(start)
+                        ends.append(start + timedelta(seconds=duration))
+                if not starts:
+                    continue
+                program_id = int(program.get("id", 0))
+                name = str(
+                    program_names.get(program_id)
+                    or program.get("name")
+                    or f"Program {program_id}"
+                ).strip()
+                if not name.casefold().startswith("rm "):
+                    name = "RM " + name
+                result.append(
+                    PlannedEvent(
+                        source="RainMachine",
+                        name=name,
+                        start=min(starts),
+                        end=max(ends),
+                    )
+                )
+        return result
 
     def _history_state_changes(self, monitor=None):
         last_record = self._history.last_record()
