@@ -246,6 +246,77 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.assertEqual(events[0].start.strftime("%H:%M:%S"), "02:25:00")
         self.assertEqual(events[0].end.strftime("%H:%M:%S"), "02:31:29")
 
+    def test_all_opensprinkler_programs_ignore_day_and_weather(self):
+        payload = {
+            "settings": {"sunrise": 400, "sunset": 1235},
+            "options": {"wl": 25, "sdt": 5},
+            "stations": {"snames": ["Front"], "stn_grp": [0]},
+            "programs": {
+                "pd": [
+                    [51, 1, 99, [145, 2, 10, 0], [60], "Front"]
+                ]
+            },
+        }
+
+        events = self.plugin._parse_all_opensprinkler_programs(payload)
+
+        self.assertEqual(events, [("OS Front", 8700, 9960, True)])
+
+    def test_all_rainmachine_programs_use_configured_durations(self):
+        rm = device(
+            2,
+            "RainMachine",
+            {},
+            props={"ip_address": "controller"},
+        )
+        programs = [
+            {
+                "name": "Garden",
+                "active": False,
+                "startTime": "06:30",
+                "cycles": 3,
+                "soak": 120,
+                "cs_on": True,
+                "wateringTimes": [
+                    {"active": True, "duration": 600},
+                    {"active": True, "duration": 300},
+                    {"active": False, "duration": 999},
+                ],
+            }
+        ]
+        with patch.object(
+            self.plugin,
+            "_rainmachine_program_payload",
+            return_value=programs,
+        ):
+            events = self.plugin._all_rainmachine_programs(rm)
+
+        self.assertEqual(events, [("RM Garden", 23400, 24540, False)])
+
+    def test_log_all_programmed_events_writes_sorted_complete_list(self):
+        monitor = self.make_monitor()
+        self.plugin.logger = Mock()
+        with patch.object(
+            self.plugin,
+            "_all_programmed_events",
+            return_value=(
+                [
+                    ("OS Early", 3600, 4200, True),
+                    ("RM Late", 7200, 9000, False),
+                ],
+                [],
+            ),
+        ):
+            self.plugin.logAllProgrammedEvents()
+
+        messages = [call.args[0] for call in self.plugin.logger.info.call_args_list]
+        self.assertEqual(messages[0], "All programmed irrigation events (2 total):")
+        self.assertIn("01. OS Early | 01:00 | planned end 01:10", messages)
+        self.assertIn(
+            "02. RM Late | 02:00 | planned end 02:30 | DISABLED",
+            messages,
+        )
+
     def test_rainmachine_cycles_are_grouped_by_program(self):
         payload = {
             "waterLog": {

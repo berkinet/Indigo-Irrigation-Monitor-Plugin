@@ -4,4 +4,8 @@
         <Name>Update Today's Schedule</Name>
         <CallbackMethod>updateTodaysSchedule</CallbackMethod>
     </MenuItem>
+    <MenuItem id="logAllProgrammedEvents">
+        <Name>Log All Programmed Events</Name>
+        <CallbackMethod>logAllProgrammedEvents</CallbackMethod>
+    </MenuItem>
 </MenuItems>
