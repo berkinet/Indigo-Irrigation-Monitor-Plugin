@@ -947,7 +947,7 @@ class Plugin(indigo.PluginBase):
     def _rainmachine_program_payload(self, device):
         props = device.pluginProps
         host = self._rainmachine_host(device)
-        password = str(props.get("password") or "")
+        password = self._rainmachine_password(device)
         base, context = self._rainmachine_local_endpoint(props, host)
         body = json.dumps({"pwd": password, "remember": True}).encode()
         request = urllib.request.Request(
@@ -969,6 +969,19 @@ class Plugin(indigo.PluginBase):
         return str(
             props.get("ip_address") or getattr(device, "address", "") or ""
         ).strip()
+
+    def _rainmachine_password(self, device):
+        password = str(
+            self.pluginPrefs.get("rainMachinePassword")
+            or device.pluginProps.get("password")
+            or ""
+        )
+        if not password:
+            raise ValueError(
+                "RainMachine password is missing; enter it in "
+                "Irrigation Monitor Configure"
+            )
+        return password
 
     @staticmethod
     def _rainmachine_local_endpoint(props, host):
@@ -1115,7 +1128,7 @@ class Plugin(indigo.PluginBase):
     def _rainmachine_schedule(self, device, day):
         props = device.pluginProps
         host = self._rainmachine_host(device)
-        password = str(props.get("password") or "")
+        password = self._rainmachine_password(device)
         base, context = self._rainmachine_local_endpoint(props, host)
         body = json.dumps({"pwd": password, "remember": True}).encode()
         request = urllib.request.Request(
