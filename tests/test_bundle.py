@@ -13,7 +13,7 @@ class BundleTests(unittest.TestCase):
         with (BUNDLE / "Contents" / "Info.plist").open("rb") as stream:
             info = plistlib.load(stream)
         self.assertEqual(info["ServerApiVersion"], "3.8")
-        self.assertEqual(info["PluginVersion"], "0.2.1")
+        self.assertEqual(info["PluginVersion"], "0.2.2")
 
     def test_devices_xml_is_well_formed(self):
         root = ET.parse(
@@ -44,7 +44,7 @@ class BundleTests(unittest.TestCase):
             root.findtext(".//CallbackMethod"), "updateTodaysSchedule"
         )
 
-    def test_plugin_configuration_contains_concealed_os_password(self):
+    def test_plugin_configuration_contains_secure_os_password(self):
         root = ET.parse(
             BUNDLE / "Contents" / "Server Plugin" / "PluginConfig.xml"
         ).getroot()
@@ -54,8 +54,9 @@ class BundleTests(unittest.TestCase):
         }
         self.assertIn("openSprinklerHost", fields)
         self.assertEqual(
-            fields["openSprinklerPassword"].get("hidden"), "true"
+            fields["openSprinklerPassword"].get("secure"), "true"
         )
+        self.assertNotIn("hidden", fields["openSprinklerPassword"])
 
 
 if __name__ == "__main__":
