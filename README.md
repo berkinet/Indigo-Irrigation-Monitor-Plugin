@@ -67,9 +67,10 @@ The optional `is_rf_linked` state is used to detect availability. Indigo device
 names are used as LinkTap zone names.
 
 OpenSprinkler schedule collection connects directly to the controller's local
-JSON API. Enter its IP address or hostname and password in the Irrigation
-Monitor device configuration; the password field is concealed. OpenSprinkler
-program durations use the controller's current weather-adjusted watering level.
+JSON API. Enter its IP address or hostname and password under **Plugins ->
+Irrigation Monitor -> Configure**; the password field is concealed.
+OpenSprinkler program durations use the controller's current weather-adjusted
+watering level.
 
 ## Installation
 

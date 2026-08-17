@@ -13,14 +13,6 @@
                 <Description>Select each Indigo MQTT Shims LinkTap zone device to monitor.</Description>
                 <List class="self" method="availableLinkTapDevices" dynamicReload="true"/>
             </Field>
-            <Field id="openSprinklerHost" type="textfield" defaultValue="192.168.5.49">
-                <Label>OpenSprinkler address:</Label>
-                <Description>IP address or hostname of the local OpenSprinkler controller.</Description>
-            </Field>
-            <Field id="openSprinklerPassword" type="textfield" hidden="true">
-                <Label>OpenSprinkler password:</Label>
-                <Description>Password used by the local OpenSprinkler API.</Description>
-            </Field>
         </ConfigUI>
         <States>
             <State id="onOffState" readonly="true">
