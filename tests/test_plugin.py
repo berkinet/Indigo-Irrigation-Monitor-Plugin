@@ -299,7 +299,12 @@ class IrrigationMonitorTests(unittest.TestCase):
             datetime.fromisoformat("2026-08-17T20:00:00+02:00"),
             datetime.fromisoformat("2026-08-17T20:30:00+02:00"),
         )
-        monitor.pluginProps["openSprinklerHost"] = "controller"
+        self.plugin.pluginPrefs.update(
+            {
+                "openSprinklerHost": "controller",
+                "openSprinklerPassword": "password",
+            }
+        )
         with patch.object(
             self.plugin, "_opensprinkler_schedule", return_value=[early]
         ), patch.object(

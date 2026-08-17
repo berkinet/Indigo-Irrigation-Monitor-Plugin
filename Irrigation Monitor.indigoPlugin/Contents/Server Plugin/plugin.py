@@ -315,7 +315,7 @@ class Plugin(indigo.PluginBase):
         )
         linktap_ids = _selected_ids(values_dict.get("linkTapDevices"))
         opensprinkler_host = str(
-            values_dict.get("openSprinklerHost") or ""
+            self.pluginPrefs.get("openSprinklerHost") or ""
         ).strip()
         if not rainmachine_ids and not linktap_ids and not opensprinkler_host:
             errors = indigo.Dict()
@@ -326,16 +326,6 @@ class Plugin(indigo.PluginBase):
             errors["showAlertText"] = (
                 "The irrigation monitor needs at least one source device."
             )
-            return False, values_dict, errors
-
-        if opensprinkler_host and not str(
-            values_dict.get("openSprinklerPassword") or ""
-        ):
-            errors = indigo.Dict()
-            errors["openSprinklerPassword"] = (
-                "Enter the OpenSprinkler controller password."
-            )
-            errors["showAlertText"] = errors["openSprinklerPassword"]
             return False, values_dict, errors
 
         duplicate_ids = set(rainmachine_ids).intersection(linktap_ids)
@@ -359,6 +349,33 @@ class Plugin(indigo.PluginBase):
                 return False, values_dict, errors
 
         return True, values_dict
+
+    def validatePrefsConfigUi(self, values_dict):
+        host = str(values_dict.get("openSprinklerHost") or "").strip()
+        password = str(
+            values_dict.get("openSprinklerPassword") or ""
+        )
+        if bool(host) != bool(password):
+            errors = indigo.Dict()
+            field = (
+                "openSprinklerPassword" if host else "openSprinklerHost"
+            )
+            errors[field] = (
+                "Enter both the OpenSprinkler address and password, or "
+                "leave both blank."
+            )
+            errors["showAlertText"] = errors[field]
+            return False, values_dict, errors
+        values_dict["openSprinklerHost"] = host
+        return True, values_dict
+
+    def closedPrefsConfigUi(self, values_dict, user_cancelled):
+        if user_cancelled:
+            return
+        monitor = self._monitor_device()
+        if monitor is not None:
+            with self._lock:
+                self._update_todays_schedule(monitor, _now().date())
 
     def closedDeviceConfigUi(self, values_dict, user_cancelled, type_id, device_id):
         if user_cancelled or type_id != DEVICE_MONITOR:
@@ -712,7 +729,7 @@ class Plugin(indigo.PluginBase):
                 failures.append(f"{device.name}: {error}")
 
         host = str(
-            monitor.pluginProps.get("openSprinklerHost") or ""
+            self.pluginPrefs.get("openSprinklerHost") or ""
         ).strip()
         if host:
             try:
@@ -780,9 +797,12 @@ class Plugin(indigo.PluginBase):
         return f"{event.name} | {event.start:%H:%M} | {event.end:%H:%M}"
 
     def _opensprinkler_schedule(self, monitor, day):
-        props = monitor.pluginProps
-        host = str(props.get("openSprinklerHost") or "").strip()
-        password = str(props.get("openSprinklerPassword") or "")
+        host = str(
+            self.pluginPrefs.get("openSprinklerHost") or ""
+        ).strip()
+        password = str(
+            self.pluginPrefs.get("openSprinklerPassword") or ""
+        )
         token = hashlib.md5(password.encode("utf-8")).hexdigest()
         url = f"http://{host}/ja?" + urllib.parse.urlencode({"pw": token})
         with urllib.request.urlopen(url, timeout=15) as response:
