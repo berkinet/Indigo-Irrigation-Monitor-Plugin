@@ -330,6 +330,18 @@ class IrrigationMonitorTests(unittest.TestCase):
 
         self.assertEqual(self.plugin._rainmachine_host(rm), "192.0.2.11")
 
+    def test_rainmachine_password_uses_monitor_configuration(self):
+        rm = device(2, "RainMachine", {}, props={"password": "unavailable"})
+        self.plugin.pluginPrefs["rainMachinePassword"] = "configured"
+
+        self.assertEqual(self.plugin._rainmachine_password(rm), "configured")
+
+    def test_rainmachine_password_reports_missing_configuration(self):
+        rm = device(2, "RainMachine", {}, props={})
+
+        with self.assertRaisesRegex(ValueError, "Configure"):
+            self.plugin._rainmachine_password(rm)
+
     def test_rainmachine_program_discovery_rejects_cloud_connection(self):
         with self.assertRaisesRegex(ValueError, "requires a local"):
             self.plugin._rainmachine_local_endpoint(

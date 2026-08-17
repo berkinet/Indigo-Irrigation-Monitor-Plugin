@@ -9,4 +9,8 @@
         <Label>OpenSprinkler password:</Label>
         <Description>Password used by the local OpenSprinkler API.</Description>
     </Field>
+    <Field id="rainMachinePassword" type="textfield" secure="true">
+        <Label>RainMachine password:</Label>
+        <Description>Password used by the local RainMachine API. This is required because Indigo does not expose another plugin's secure password.</Description>
+    </Field>
 </PluginConfig>
