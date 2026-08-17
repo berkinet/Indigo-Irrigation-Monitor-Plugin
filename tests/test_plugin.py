@@ -75,6 +75,7 @@ def device(
     *,
     device_type="external",
     props=None,
+    address="",
 ):
     return SimpleNamespace(
         id=device_id,
@@ -83,6 +84,7 @@ def device(
         enabled=True,
         deviceTypeId=device_type,
         pluginProps=dict(props or {}),
+        address=address,
         updateStatesOnServer=Mock(),
         updateStateOnServer=Mock(),
         setErrorStateOnServer=Mock(),
@@ -305,6 +307,28 @@ class IrrigationMonitorTests(unittest.TestCase):
 
         self.assertEqual(base, "https://192.0.2.10:8080/api/4")
         self.assertIsNotNone(context)
+
+    def test_rainmachine_host_falls_back_to_indigo_device_address(self):
+        rm = device(
+            2,
+            "RainMachine",
+            {},
+            props={"connectionType": "Local"},
+            address="192.0.2.10",
+        )
+
+        self.assertEqual(self.plugin._rainmachine_host(rm), "192.0.2.10")
+
+    def test_rainmachine_host_prefers_plugin_property(self):
+        rm = device(
+            2,
+            "RainMachine",
+            {},
+            props={"ip_address": "192.0.2.11"},
+            address="192.0.2.10",
+        )
+
+        self.assertEqual(self.plugin._rainmachine_host(rm), "192.0.2.11")
 
     def test_rainmachine_program_discovery_rejects_cloud_connection(self):
         with self.assertRaisesRegex(ValueError, "requires a local"):
