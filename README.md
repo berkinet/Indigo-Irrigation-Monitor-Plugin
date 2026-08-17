@@ -46,6 +46,11 @@ summary device.
   program are represented by one span from the first start to the final end.
 - Provides **Plugins -> Irrigation Monitor -> Update Today's Schedule** for an
   immediate refresh using the same collection path as the daily job.
+- Provides **Plugins -> Irrigation Monitor -> Log All Programmed Events** to
+  query every RainMachine and OpenSprinkler program definition without date
+  filtering and write a start-time-ordered list to the Indigo log. Cyclic
+  starts are collapsed into one span and planned ends use configured base
+  durations, not unavailable future ETo adjustments.
 
 ## Source state requirements
 

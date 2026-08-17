@@ -290,6 +290,31 @@ class Plugin(indigo.PluginBase):
         with self._lock:
             self._update_todays_schedule(monitor, _now().date())
 
+    def logAllProgrammedEvents(self):
+        """Log every configured program definition, without date filtering."""
+        monitor = self._monitor_device()
+        if monitor is None:
+            self.logger.error(
+                "Unable to log programmed events: no enabled Irrigation "
+                "Monitor device is available"
+            )
+            return
+        with self._lock:
+            events, failures = self._all_programmed_events(monitor)
+        self.logger.info(
+            f"All programmed irrigation events ({len(events)} total):"
+        )
+        if not events:
+            self.logger.info("No programmed irrigation events found")
+        for index, event in enumerate(events, start=1):
+            status = "" if event[3] else " | DISABLED"
+            self.logger.info(
+                f"{index:02d}. {event[0]} | {self._format_program_clock(event[1])}"
+                f" | planned end {self._format_program_clock(event[2])}{status}"
+            )
+        for failure in failures:
+            self.logger.error("Programmed event query failed: " + failure)
+
     def deviceStopComm(self, device):
         super().deviceStopComm(device)
         if device.id == self._monitor_device_id:
@@ -795,6 +820,152 @@ class Plugin(indigo.PluginBase):
     @staticmethod
     def _format_planned_event(event):
         return f"{event.name} | {event.start:%H:%M} | {event.end:%H:%M}"
+
+    def _all_programmed_events(self, monitor):
+        events = []
+        failures = []
+        for device_id in _selected_ids(
+            monitor.pluginProps.get("rainMachineDevices")
+        ):
+            device = self._device_by_id(device_id)
+            if device is None or not device.enabled:
+                failures.append(f"RainMachine {device_id}: unavailable")
+                continue
+            try:
+                events.extend(self._all_rainmachine_programs(device))
+            except Exception as error:
+                failures.append(f"{device.name}: {error}")
+        if str(self.pluginPrefs.get("openSprinklerHost") or "").strip():
+            try:
+                events.extend(self._all_opensprinkler_programs())
+            except Exception as error:
+                failures.append(f"OpenSprinkler: {error}")
+        events.sort(key=lambda event: (event[1], event[2], event[0].casefold()))
+        return events, failures
+
+    @staticmethod
+    def _format_program_clock(total_seconds):
+        total_seconds = max(0, int(total_seconds))
+        days, remainder = divmod(total_seconds, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes = remainder // 60
+        suffix = f" +{days}d" if days else ""
+        return f"{hours:02d}:{minutes:02d}{suffix}"
+
+    def _all_opensprinkler_programs(self):
+        host = str(self.pluginPrefs.get("openSprinklerHost") or "").strip()
+        password = str(self.pluginPrefs.get("openSprinklerPassword") or "")
+        token = hashlib.md5(password.encode("utf-8")).hexdigest()
+        url = f"http://{host}/ja?" + urllib.parse.urlencode({"pw": token})
+        with urllib.request.urlopen(url, timeout=15) as response:
+            payload = json.load(response)
+        return self._parse_all_opensprinkler_programs(payload)
+
+    @classmethod
+    def _parse_all_opensprinkler_programs(cls, payload):
+        settings = payload.get("settings", {})
+        options = payload.get("options", {})
+        programs = payload.get("programs", {})
+        stations = payload.get("stations", {})
+        names = stations.get("snames", [])
+        groups = stations.get("stn_grp", [0] * len(names))
+        station_delay = int(_as_float(options.get("sdt"), 0))
+        sunrise = int(_as_float(settings.get("sunrise"), 360))
+        sunset = int(_as_float(settings.get("sunset"), 1080))
+        result = []
+        for program in programs.get("pd", []):
+            if not isinstance(program, list) or len(program) < 6:
+                continue
+            flags, _days0, _days1, starts, durations, name = program[:6]
+            start_minutes = cls._opensprinkler_start_minutes(
+                int(flags), starts, sunrise, sunset
+            )
+            run_seconds = [
+                (index, max(0, int(_as_float(duration))))
+                for index, duration in enumerate(durations)
+                if duration and index < len(names)
+            ]
+            if not start_minutes or not run_seconds:
+                continue
+            first_start = min(start_minutes) * 60
+            final_end = first_start
+            for start_minute in start_minutes:
+                group_ends = {}
+                latest = start_minute * 60
+                for station_index, duration in run_seconds:
+                    group = groups[station_index] if station_index < len(groups) else 0
+                    station_start = max(start_minute * 60, group_ends.get(group, 0))
+                    station_end = station_start + duration
+                    group_ends[group] = station_end + station_delay
+                    latest = max(latest, station_end)
+                final_end = max(final_end, latest)
+            result.append(
+                (
+                    f"OS {str(name).strip()}",
+                    first_start,
+                    final_end,
+                    bool(int(flags) & 1),
+                )
+            )
+        return result
+
+    def _all_rainmachine_programs(self, device):
+        programs = self._rainmachine_program_payload(device)
+        result = []
+        for program in programs:
+            raw_start = str(program.get("startTime") or "00:00")
+            try:
+                hours, minutes = (int(value) for value in raw_start.split(":")[:2])
+            except (TypeError, ValueError):
+                continue
+            start_seconds = hours * 3600 + minutes * 60
+            duration = sum(
+                max(0, int(_as_float(zone.get("duration", 0))))
+                for zone in program.get("wateringTimes", [])
+                if _as_bool(zone.get("active", False))
+            )
+            if _as_bool(program.get("delay_on", False)):
+                duration += max(0, int(_as_float(program.get("delay", 0))))
+            cycles = max(1, int(_as_float(program.get("cycles", 1))))
+            if _as_bool(program.get("cs_on", False)) and cycles > 1:
+                duration += (cycles - 1) * max(
+                    0, int(_as_float(program.get("soak", 0)))
+                )
+            name = str(program.get("name") or "Unnamed program").strip()
+            if not name.casefold().startswith("rm "):
+                name = "RM " + name
+            result.append(
+                (
+                    name,
+                    start_seconds,
+                    start_seconds + duration,
+                    _as_bool(program.get("active", False)),
+                )
+            )
+        return result
+
+    def _rainmachine_program_payload(self, device):
+        props = device.pluginProps
+        host = str(props.get("ip_address") or "").strip()
+        port = str(props.get("port") or "8080")
+        password = str(props.get("password") or "")
+        use_https = _as_bool(props.get("https", True))
+        scheme = "https" if use_https else "http"
+        base = f"{scheme}://{host}:{port}/api/4"
+        context = ssl._create_unverified_context() if use_https else None
+        body = json.dumps({"pwd": password, "remember": True}).encode()
+        request = urllib.request.Request(
+            base + "/auth/login",
+            data=body,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(request, timeout=15, context=context) as response:
+            token = json.load(response)["access_token"]
+        url = base + "/program?" + urllib.parse.urlencode(
+            {"access_token": token}
+        )
+        with urllib.request.urlopen(url, timeout=15, context=context) as response:
+            return json.load(response).get("programs", [])
 
     def _opensprinkler_schedule(self, monitor, day):
         host = str(
