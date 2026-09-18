@@ -527,21 +527,13 @@ class Plugin(indigo.PluginBase):
     @staticmethod
     def _linktap_snapshot(device):
         states = device.states
-        if BRIDGE_REQUIRED_STATES.issubset(states):
-            # Requested commands are not evidence of actual watering. The bridge
-            # marks cached reports unknown until fresh LinkTap status arrives.
-            return SourceSnapshot(
-                source_key=f"linktap:{device.id}",
-                source_type="LinkTap",
-                device_id=device.id,
-                device_name=device.name,
-                zone_name=device.name,
-                watering=_as_bool(states.get("watering")),
-                available=_as_bool(states.get("statusKnown")),
-                # requestedSeconds is a command duration, not a countdown.
-                remaining_minutes=0.0,
-            )
-        available = _as_bool(states.get("is_rf_linked", True))
+        is_bridge = BRIDGE_REQUIRED_STATES.issubset(states)
+        # Bridge freshness is authoritative: optional RF telemetry may still
+        # have Indigo's default value when omitted from a valid callback.
+        available = _as_bool(
+            states.get("statusKnown") if is_bridge
+            else states.get("is_rf_linked", True)
+        )
         faults = tuple(
             state_name
             for state_name in LT_FAULT_STATES
@@ -553,7 +545,7 @@ class Plugin(indigo.PluginBase):
             device_id=device.id,
             device_name=device.name,
             zone_name=device.name,
-            watering=_as_bool(states.get("is_watering")),
+            watering=_as_bool(states.get("watering" if is_bridge else "is_watering")),
             available=available,
             remaining_minutes=_as_float(
                 states.get("remain_duration")

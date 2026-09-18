@@ -241,6 +241,36 @@ class IrrigationMonitorTests(unittest.TestCase):
         self.plugin._reconcile(monitor)
         self.assertEqual([r["event"] for r in self.records()], ["start", "stop"])
 
+    def test_bridge_telemetry_updates_monitor_and_stop_history(self):
+        zone = device(8, "LT Salad", {
+            "watering": True, "statusKnown": True, "requestedSeconds": 600,
+            "is_watering": True, "remain_duration": 150, "total_duration": 300,
+            "volume": 12.5, "is_rf_linked": False, "is_cutoff": False,
+        })
+        indigo.devices.items[8] = zone
+        # New bridge zones also match the legacy schema; list them only once.
+        self.assertEqual(self.plugin.availableLinkTapDevices(), [("8", "LT Salad")])
+        monitor = self.make_monitor(linktap=[8])
+        changes = {c["key"]: c["value"] for c in
+                   monitor.updateStatesOnServer.call_args.args[0]}
+        self.assertEqual(changes["remainingMinutes"], 2.5)
+        snapshot = self.plugin._linktap_snapshot(zone)
+        self.assertTrue(snapshot.available)
+        self.assertEqual(snapshot.volume, 12.5)
+        zone.states.update(statusKnown=False, is_rf_linked=True, watering=False)
+        self.plugin._reconcile(monitor)
+        monitor.setErrorStateOnServer.assert_called_with("Unavailable: LT Salad")
+        self.assertEqual([r["event"] for r in self.records()], ["start"])
+        zone.states.update(statusKnown=True, remain_duration=0, volume=18.25,
+                           is_cutoff=True)
+        self.plugin._reconcile(monitor)
+        stop = self.records()[-1]
+        self.assertEqual(stop["event"], "stop")
+        self.assertEqual(stop["volume"], 18.25)
+        self.assertEqual(stop["faults"], ["is_cutoff"])
+        # The bridge's confirmed watering state wins over its legacy alias.
+        self.assertFalse(self.plugin._linktap_snapshot(zone).watering)
+
     def test_removed_and_disabled_legacy_selections_remain_unavailable(self):
         old_zone = device(8, "Old zone", {})
         old_zone.enabled = False

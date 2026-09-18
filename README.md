@@ -74,8 +74,13 @@ names are used as LinkTap zone names.
 OpenSprinkler LinkTap Bridge zones expose `watering`, `statusKnown`, and
 `requestedSeconds`. The monitor uses confirmed `watering` and marks the source
 unavailable while `statusKnown` is false. Requested commands do not count as
-watering. The bridge does not expose a remaining-time countdown or volume, so
-these zones contribute zero to `remainingMinutes`.
+watering. Bridge 0.1.13 also exposes `remain_duration` (seconds), `volume`,
+and LinkTap fault flags. The monitor converts reported remaining duration to
+minutes and retains volume and active faults in stop-event history. Older bridge
+versions without these fields remain supported, with zero remaining minutes and
+no volume or faults. `requestedSeconds` is never used as a remaining-time estimate.
+Bridge availability uses `statusKnown`; optional RF telemetry does not override
+that freshness signal.
 
 After switching from MQTT Shims, edit the Irrigation monitor device and replace
 its old LinkTap selections with the new bridge's Virtual Irrigation Zone
