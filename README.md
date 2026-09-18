@@ -3,7 +3,7 @@
 Alpha Indigo plugin that consolidates irrigation activity already reported by:
 
 - RainMachine2 controller devices; and
-- LinkTap zone devices maintained by MQTT Shims.
+- LinkTap zone devices maintained by OpenSprinkler LinkTap Bridge or MQTT Shims.
 
 The plugin does not connect to RainMachine, LinkTap, OpenSprinkler, or MQTT
 directly. It subscribes to Indigo device changes and creates one read-only
@@ -62,7 +62,7 @@ RainMachine devices must expose:
 
 The optional `device_online` state is used to detect availability.
 
-LinkTap devices must expose:
+MQTT Shims LinkTap devices must expose:
 
 - `is_watering`
 - `remain_duration`
@@ -70,6 +70,18 @@ LinkTap devices must expose:
 
 The optional `is_rf_linked` state is used to detect availability. Indigo device
 names are used as LinkTap zone names.
+
+OpenSprinkler LinkTap Bridge zones expose `watering`, `statusKnown`, and
+`requestedSeconds`. The monitor uses confirmed `watering` and marks the source
+unavailable while `statusKnown` is false. Requested commands do not count as
+watering. The bridge does not expose a remaining-time countdown or volume, so
+these zones contribute zero to `remainingMinutes`.
+
+After switching from MQTT Shims, edit the Irrigation monitor device and replace
+its old LinkTap selections with the new bridge's Virtual Irrigation Zone
+devices (one per physical valve). Keep the RainMachine selection. Old device IDs
+are not automatically mapped to new devices. A missing or disabled old source
+appears as `Unavailable: LinkTap <device ID>` until its selection is removed.
 
 OpenSprinkler schedule collection connects directly to the controller's local
 JSON API. Enter its IP address or hostname and password under **Plugins ->

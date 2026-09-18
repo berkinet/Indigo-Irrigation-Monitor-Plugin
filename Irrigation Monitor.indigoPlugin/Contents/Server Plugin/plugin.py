@@ -32,6 +32,7 @@ RM_REQUIRED_STATES = frozenset(
 LT_REQUIRED_STATES = frozenset(
     {"is_watering", "remain_duration", "total_duration"}
 )
+BRIDGE_REQUIRED_STATES = frozenset({"watering", "statusKnown", "requestedSeconds"})
 LT_FAULT_STATES = (
     "is_broken",
     "is_clog",
@@ -419,7 +420,9 @@ class Plugin(indigo.PluginBase):
     def availableLinkTapDevices(
         self, filter="", valuesDict=None, typeId="", targetId=0
     ):
-        return self._devices_with_states(LT_REQUIRED_STATES)
+        available = dict(self._devices_with_states(LT_REQUIRED_STATES))
+        available.update(self._devices_with_states(BRIDGE_REQUIRED_STATES))
+        return sorted(available.items(), key=lambda item: item[1].casefold())
 
     def _devices_with_states(self, required_states):
         available = []
@@ -524,6 +527,20 @@ class Plugin(indigo.PluginBase):
     @staticmethod
     def _linktap_snapshot(device):
         states = device.states
+        if BRIDGE_REQUIRED_STATES.issubset(states):
+            # Requested commands are not evidence of actual watering. The bridge
+            # marks cached reports unknown until fresh LinkTap status arrives.
+            return SourceSnapshot(
+                source_key=f"linktap:{device.id}",
+                source_type="LinkTap",
+                device_id=device.id,
+                device_name=device.name,
+                zone_name=device.name,
+                watering=_as_bool(states.get("watering")),
+                available=_as_bool(states.get("statusKnown")),
+                # requestedSeconds is a command duration, not a countdown.
+                remaining_minutes=0.0,
+            )
         available = _as_bool(states.get("is_rf_linked", True))
         faults = tuple(
             state_name

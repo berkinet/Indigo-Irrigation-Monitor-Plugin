@@ -217,6 +217,38 @@ class IrrigationMonitorTests(unittest.TestCase):
             self.plugin.availableLinkTapDevices(), [("3", "Orchard")]
         )
 
+    def test_bridge_discovery_and_confirmed_watering_lifecycle(self):
+        zone = device(8, "LT Salad", {
+            "watering": False, "statusKnown": True,
+            "requestedSeconds": 120, "requested": True,
+            "onOffState": True,
+        })
+        bridge = device(9, "Bridge", {"anyWatering": True, "statusKnown": True})
+        indigo.devices.items = {8: zone, 9: bridge}
+        self.assertEqual(self.plugin.availableLinkTapDevices(), [("8", "LT Salad")])
+        monitor = self.make_monitor(linktap=[8])
+        self.assertEqual(self.records(), [])
+        zone.states["watering"] = True
+        self.plugin._reconcile(monitor)
+        self.assertEqual([r["event"] for r in self.records()], ["start"])
+        snapshot = self.plugin._linktap_snapshot(zone)
+        self.assertEqual(snapshot.remaining_minutes, 0)
+        zone.states.update(statusKnown=False, watering=False)
+        self.plugin._reconcile(monitor)
+        monitor.setErrorStateOnServer.assert_called_with("Unavailable: LT Salad")
+        self.assertEqual([r["event"] for r in self.records()], ["start"])
+        zone.states["statusKnown"] = True
+        self.plugin._reconcile(monitor)
+        self.assertEqual([r["event"] for r in self.records()], ["start", "stop"])
+
+    def test_removed_and_disabled_legacy_selections_remain_unavailable(self):
+        old_zone = device(8, "Old zone", {})
+        old_zone.enabled = False
+        indigo.devices.items[8] = old_zone
+        monitor = self.make_monitor(linktap=[8, 99])
+        _, unavailable = self.plugin._snapshots(monitor)
+        self.assertEqual(unavailable, ["LinkTap 8", "LinkTap 99"])
+
     def test_opensprinkler_cycles_are_grouped_as_one_program_event(self):
         payload = {
             "settings": {"sunrise": 400, "sunset": 1235},

@@ -10,7 +10,7 @@
             </Field>
             <Field id="linkTapDevices" type="list">
                 <Label>LinkTap zones:</Label>
-                <Description>Select each Indigo MQTT Shims LinkTap zone device to monitor.</Description>
+                <Description>Select each OpenSprinkler LinkTap Bridge zone or MQTT Shims LinkTap zone to monitor. After migration, replace the old zone selections.</Description>
                 <List class="self" method="availableLinkTapDevices" dynamicReload="true"/>
             </Field>
         </ConfigUI>
