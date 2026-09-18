@@ -475,8 +475,10 @@ class Plugin(indigo.PluginBase):
             monitor.pluginProps.get("rainMachineDevices")
         ):
             device = self._device_by_id(device_id)
-            if device is None or not device.enabled:
+            if device is None:
                 unavailable.append(f"RainMachine {device_id}")
+                continue
+            if not device.enabled:
                 continue
             snapshot = self._rainmachine_snapshot(device)
             snapshots.append(snapshot)
@@ -487,8 +489,10 @@ class Plugin(indigo.PluginBase):
             monitor.pluginProps.get("linkTapDevices")
         ):
             device = self._device_by_id(device_id)
-            if device is None or not device.enabled:
+            if device is None:
                 unavailable.append(f"LinkTap {device_id}")
+                continue
+            if not device.enabled:
                 continue
             snapshot = self._linktap_snapshot(device)
             snapshots.append(snapshot)
@@ -586,6 +590,11 @@ class Plugin(indigo.PluginBase):
                 self._stop_session(
                     session, snapshot=None, reason="sourceRemoved"
                 )
+                del self._sessions[source_key]
+                continue
+            source = self._device_by_id(session.device_id)
+            if source is not None and not source.enabled:
+                self._stop_session(session, snapshot=None, reason="sourceDisabled")
                 del self._sessions[source_key]
                 continue
             if prefix not in available_source_prefixes:

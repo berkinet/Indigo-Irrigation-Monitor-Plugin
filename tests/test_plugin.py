@@ -287,13 +287,37 @@ class IrrigationMonitorTests(unittest.TestCase):
             monitor.updateStateOnServer.call_args.kwargs["clearErrorState"], True
         )
 
-    def test_removed_and_disabled_legacy_selections_remain_unavailable(self):
+    def test_disabled_sources_are_skipped_but_missing_sources_report_errors(self):
         old_zone = device(8, "Old zone", {})
         old_zone.enabled = False
         indigo.devices.items[8] = old_zone
         monitor = self.make_monitor(linktap=[8, 99])
         _, unavailable = self.plugin._snapshots(monitor)
-        self.assertEqual(unavailable, ["LinkTap 8", "LinkTap 99"])
+        self.assertEqual(unavailable, ["LinkTap 99"])
+
+    def test_disabling_and_reenabling_selected_source_needs_no_reconfiguration(self):
+        for source_type in ("bridge", "rainmachine"):
+            with self.subTest(source_type=source_type):
+                zone = device(8, "Zone", {
+                    "watering": True, "statusKnown": True, "requestedSeconds": 60,
+                    "active_watering": True, "current_zone": "Zone", "minutes_left": 1,
+                })
+                indigo.devices.items[8] = zone
+                monitor = self.make_monitor(**{
+                    "linktap" if source_type == "bridge" else "rainmachine": [8]
+                })
+                self.assertEqual(len(self.plugin._sessions), 1)
+                zone.enabled = False
+                self.plugin.deviceUpdated(zone, zone)
+                self.assertEqual(self.plugin._snapshots(monitor), ([], []))
+                self.assertEqual(len(self.plugin._sessions), 0)
+                self.assertEqual(self.records()[-1]["reason"], "sourceDisabled")
+                self.assertTrue(monitor.updateStateOnServer.call_args.kwargs["clearErrorState"])
+                zone.enabled = True
+                self.plugin.deviceUpdated(zone, zone)
+                self.assertEqual(len(self.plugin._sessions), 1)
+                zone.enabled = False
+                self.plugin.deviceUpdated(zone, zone)
 
     def test_opensprinkler_cycles_are_grouped_as_one_program_event(self):
         payload = {

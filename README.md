@@ -31,8 +31,10 @@ summary device.
   plugin starts.
 - Marks the summary device unavailable when a configured source cannot provide
   a trustworthy state. Routine time, history, and schedule updates preserve this
-  error until a source check confirms recovery. Deselect disabled spare zones
-  in the monitor configuration if they should not be monitored.
+  error until a source check confirms recovery. Disabled sources are temporarily
+  excluded and automatically monitored again when enabled, without changing
+  selections. Disabling an active source closes its tracked session with reason
+  `sourceDisabled`; this records the end of monitoring, not a confirmed valve stop.
 - Writes append-only JSON Lines history to:
 
   `Logs/Irrigation Monitor/irrigation-history.jsonl`
@@ -87,7 +89,7 @@ that freshness signal.
 After switching from MQTT Shims, edit the Irrigation monitor device and replace
 its old LinkTap selections with the new bridge's Virtual Irrigation Zone
 devices (one per physical valve). Keep the RainMachine selection. Old device IDs
-are not automatically mapped to new devices. A missing or disabled old source
+are not automatically mapped to new devices. A missing old source
 appears as `Unavailable: LinkTap <device ID>` until its selection is removed.
 
 OpenSprinkler schedule collection connects directly to the controller's local
