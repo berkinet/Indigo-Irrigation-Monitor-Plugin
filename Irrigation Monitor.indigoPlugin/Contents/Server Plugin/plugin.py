@@ -718,7 +718,7 @@ class Plugin(indigo.PluginBase):
             {"key": "remainingMinutes", "value": remaining_minutes},
         ]
         changes.extend(self._history_state_changes(monitor))
-        monitor.updateStatesOnServer(changes)
+        monitor.updateStatesOnServer(changes, clearErrorState=False)
         monitor.updateStateOnServer(
             "onOffState",
             value=bool(self._sessions),
@@ -731,7 +731,9 @@ class Plugin(indigo.PluginBase):
             )
 
     def _populate_history_states(self, monitor):
-        monitor.updateStatesOnServer(self._history_state_changes(monitor))
+        monitor.updateStatesOnServer(
+            self._history_state_changes(monitor), clearErrorState=False
+        )
 
     def _update_time_since_last_watering(self, monitor):
         if "timeSinceLastWatering" not in monitor.states:
@@ -745,6 +747,7 @@ class Plugin(indigo.PluginBase):
                 watering=bool(self._sessions),
             ),
             triggerEvents=False,
+            clearErrorState=False,
         )
 
     def _update_todays_schedule(self, monitor, day):
@@ -802,7 +805,7 @@ class Plugin(indigo.PluginBase):
             changes.append(
                 {"key": f"plannedEvent{index + 1}", "value": value}
             )
-        monitor.updateStatesOnServer(changes)
+        monitor.updateStatesOnServer(changes, clearErrorState=False)
         self._schedule_refresh_date = day
         if failures:
             self.logger.error(

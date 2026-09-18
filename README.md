@@ -30,7 +30,9 @@ summary device.
 - Reloads the history file and repopulates the recent-run states when the
   plugin starts.
 - Marks the summary device unavailable when a configured source cannot provide
-  a trustworthy state.
+  a trustworthy state. Routine time, history, and schedule updates preserve this
+  error until a source check confirms recovery. Deselect disabled spare zones
+  in the monitor configuration if they should not be monitored.
 - Writes append-only JSON Lines history to:
 
   `Logs/Irrigation Monitor/irrigation-history.jsonl`

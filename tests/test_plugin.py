@@ -271,6 +271,22 @@ class IrrigationMonitorTests(unittest.TestCase):
         # The bridge's confirmed watering state wins over its legacy alias.
         self.assertFalse(self.plugin._linktap_snapshot(zone).watering)
 
+    def test_routine_updates_preserve_source_error_until_reconciliation(self):
+        monitor = self.make_monitor(linktap=[99])
+        monitor.states["timeSinceLastWatering"] = ""
+        self.plugin._populate_history_states(monitor)
+        self.plugin._update_time_since_last_watering(monitor)
+        self.plugin._update_todays_schedule(monitor, date(2026, 9, 18))
+        for call in monitor.updateStatesOnServer.call_args_list:
+            self.assertIs(call.kwargs.get("clearErrorState"), False)
+        for call in monitor.updateStateOnServer.call_args_list:
+            self.assertIs(call.kwargs.get("clearErrorState"), False)
+        monitor.pluginProps["linkTapDevices"] = []
+        self.plugin._reconcile(monitor)
+        self.assertIs(
+            monitor.updateStateOnServer.call_args.kwargs["clearErrorState"], True
+        )
+
     def test_removed_and_disabled_legacy_selections_remain_unavailable(self):
         old_zone = device(8, "Old zone", {})
         old_zone.enabled = False
@@ -755,6 +771,7 @@ class IrrigationMonitorTests(unittest.TestCase):
             "timeSinceLastWatering",
             value="26:00",
             triggerEvents=False,
+            clearErrorState=False,
         )
 
     def test_time_since_last_watering_reports_never_without_stop(self):
